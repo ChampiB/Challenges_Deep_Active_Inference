@@ -1,2 +1,7 @@
 gym
 torch
+pyglet
+torchvision
+imageio
+atari_py
+scikit-image
