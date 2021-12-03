@@ -1,0 +1,17 @@
+defaults:
+  - env: dSprites
+  - agent: VAE
+  - _self_
+
+checkpoint:
+  directory: "${oc.env:DATA_DIRECTORY}/${env.name}/${agent.name}/${seed}/model.pt"
+  frequency: 100
+
+images:
+  shape: ${tuple:1,84,84}
+
+debug_mode: true
+n_training_steps: 10000000
+buffer_start_size: 50
+batch_size: 50
+seed: 42

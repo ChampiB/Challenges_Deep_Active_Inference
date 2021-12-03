@@ -13,7 +13,6 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -85,7 +84,7 @@ celerybeat-schedule
 
 # virtualenv
 venv/
-ENV/
+env/
 
 # Spyder project settings
 .spyderproject
@@ -152,3 +151,17 @@ com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
 fabric.properties
+
+# Dataset folders
+dsprites-ds
+mnist-ds
+maze-ds
+
+# Hydra output folder
+./outputs
+
+# Temporary folder
+./tmp
+
+# Tensorboard files
+runs

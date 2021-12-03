@@ -1,0 +1,19 @@
+name: vae
+
+defaults:
+  - encoder: convolutional
+  - decoder: convolutional
+
+_target_: agents.VAE.VAE
+
+# Miscellaneous
+n_states: 10
+lr: 0.0001
+queue_capacity: 30000
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/VAE"
+
+# Beta scheduling
+beta: 1.0
+beta_starting_step: 0
+beta_rate: 0.0000
+n_steps_beta_reset: 10000000000

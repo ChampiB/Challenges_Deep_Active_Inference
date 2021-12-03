@@ -5,3 +5,8 @@ torchvision
 imageio
 atari_py
 scikit-image
+pygame
+tk
+pillow
+tensorboard
+hydra-core
