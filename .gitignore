@@ -158,10 +158,10 @@ mnist-ds
 maze-ds
 
 # Hydra output folder
-./outputs
+outputs
 
 # Temporary folder
-./tmp
+tmp
 
 # Tensorboard files
 runs
