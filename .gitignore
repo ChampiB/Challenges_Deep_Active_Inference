@@ -83,8 +83,8 @@ celerybeat-schedule
 .env
 
 # virtualenv
-venv/
-env/
+/venv/
+/env/
 
 # Spyder project settings
 .spyderproject
@@ -153,15 +153,15 @@ crashlytics-build.properties
 fabric.properties
 
 # Dataset folders
-dsprites-ds
-mnist-ds
-maze-ds
+/dsprites-ds
+/mnist-ds
+/maze-ds
 
 # Hydra output folder
-outputs
+/outputs
 
 # Temporary folder
-tmp
+/tmp
 
 # Tensorboard files
-runs
+/runs

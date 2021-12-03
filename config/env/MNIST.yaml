@@ -1,0 +1,2 @@
+name: "MNIST"
+images_dir: "${oc.env:DATA_DIRECTORY}/mnist-ds/"

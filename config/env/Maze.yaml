@@ -1,0 +1,2 @@
+name: "Maze"
+maze_file: "${oc.env:DATA_DIRECTORY}/maze-ds/maze_1.maze"
