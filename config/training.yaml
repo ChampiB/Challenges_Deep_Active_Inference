@@ -1,6 +1,6 @@
 defaults:
   - env: dSprites
-  - agent: VAE
+  - agent: CriticalHMM
   - _self_
 
 checkpoint:
@@ -8,10 +8,11 @@ checkpoint:
   frequency: 100
 
 images:
-  shape: ${tuple:1,84,84}
+  shape: ${tuple:1,64,64}
 
 debug_mode: true
 n_training_steps: 10000000
 buffer_start_size: 50
 batch_size: 50
 seed: 42
+nb_envs: 5

@@ -24,28 +24,36 @@ def display_images(config):
     agent = instantiate(config["agent"])
     agent.load(config["checkpoint"]["directory"])
 
+    # Collect the initial image from the environment and infer the associated state.
+    obs = env.reset()
+    obs = torch.unsqueeze(obs, dim=0)
+    mean, log_var = agent.encoder(obs)
+    next_state = agent.reparameterize(mean, log_var)
+
     # Collect images from the environment.
     Logger.get().info("Gather images from the environment...\n")
     images = []
-    obs = env.reset()
-    for i in range(0, 10):
-        # Take an action in the environment.
-        action = agent.step(obs, config)
-        obs, _, _, _ = env.step(action)
+    actions = [torch.tensor([1])] * 5
+    for action in actions:
 
         # Generate an images using the VAE.
-        image = torch.unsqueeze(obs, dim=0)
-        mean, log_var = agent.encoder(image)
-        next_state = agent.reparameterize(mean, log_var)
         image = agent.decoder(next_state)
         image = torch.nn.Sigmoid()(image)
-        images.append(torch.unsqueeze(obs, dim=0))
+        images.append(obs)
         images.append(image)
+
+        # Take an action in the environment.
+        obs, _, _, _ = env.step(action)
+        obs = torch.unsqueeze(obs, dim=0)
+
+        # Make the agent imagine what would append if it was taking the action.
+        mean, log_var = agent.transition(next_state, action)
+        next_state = agent.reparameterize(mean, log_var)
 
     # Display the images in tensorboard.
     Logger.get().info("Display images...\n")
     images = torch.cat(images, dim=0)
-    agent.writer.add_images("An example of generated images", images)
+    agent.writer.add_images("An example of (true and generated) trajectories", images)
     Logger.get().info("End.\n")
 
 

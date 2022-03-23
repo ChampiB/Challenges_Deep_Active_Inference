@@ -4,7 +4,7 @@ from torch import nn
 #
 # Class implementing a network modeling the cost of each action given a state.
 #
-class CriticNetwork(nn.Module):
+class LinearRelu(nn.Module):
 
     def __init__(self, n_states, n_actions):
         """

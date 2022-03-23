@@ -5,24 +5,25 @@ from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 from torch.distributions.multivariate_normal import MultivariateNormal
-from torch import zeros_like, nn, zeros, eye
+from torch import nn, zeros, eye
 from torch.optim import Adam
 import os
 import torch
 
 
 #
-# Implement an agent acting randomly.
+# Implement a HMM agent acting randomly.
 #
-class VAE:
+class HMM:
 
-    def __init__(self, encoder, decoder, n_steps_beta_reset=10e16, beta=1, lr=0.0001,
+    def __init__(self, encoder, decoder, transition, n_steps_beta_reset=10e16, beta=1, lr=0.0001,
                  beta_starting_step=0, beta_rate=0, queue_capacity=10000,
                  tensorboard_dir="./data/runs/VAE", **_):
         """
         Constructor
         :param encoder: the encoder network
         :param decoder: the decoder network
+        :param transition: the transition network
         :param n_steps_beta_reset: the number of steps after with beta is reset
         :param beta_starting_step: the number of steps after which beta start increasing
         :param beta: the initial value for beta
@@ -35,10 +36,13 @@ class VAE:
         # Neural networks.
         self.encoder = encoder
         self.decoder = decoder
-        self.decoder.build(encoder.conv_output_shape())
+        self.transition = transition
 
         # Optimizer.
-        params = list(encoder.parameters()) + list(decoder.parameters())
+        params = \
+            list(encoder.parameters()) + \
+            list(decoder.parameters()) + \
+            list(transition.parameters())
         self.optimizer = Adam(params, lr=lr)
 
         # Beta scheduling.
@@ -121,10 +125,10 @@ class VAE:
         """
 
         # Sample the replay buffer.
-        _, _, _, _, next_obs = self.buffer.sample(config["batch_size"])
+        obs, action, _, _, next_obs = self.buffer.sample(config["batch_size"])
 
         # Compute the variational free energy.
-        vfe_loss = self.compute_vfe(config, next_obs)
+        vfe_loss = self.compute_vfe(config, obs, action, next_obs)
 
         # Perform one step of gradient descent on the other networks.
         self.optimizer.zero_grad()
@@ -137,19 +141,22 @@ class VAE:
         if self.steps_done % self.n_steps_beta_reset == 0:
             self.beta = 0
 
-    def compute_vfe(self, config, next_obs):
+    def compute_vfe(self, config, obs, actions, next_obs):
         """
         Compute the variational free energy
         :param config: the hydra configuration
+        :param obs: the observations at time t
+        :param actions: the actions at time t
         :param next_obs: the observations at time t + 1
         :return: the variational free energy
         """
 
         # Compute required vectors.
+        mean_hat, log_var_hat = self.encoder(obs)
+        states = self.reparameterize(mean_hat, log_var_hat)
         mean_hat, log_var_hat = self.encoder(next_obs)
         next_state = self.reparameterize(mean_hat, log_var_hat)
-        mean = zeros_like(next_state)
-        log_var = zeros_like(next_state)
+        mean, log_var = self.transition(states, actions)
         alpha = self.decoder(next_state)
 
         # Compute the variational free energy.
@@ -247,6 +254,7 @@ class VAE:
         torch.save({
             "decoder_net_state_dict": self.decoder.state_dict(),
             "encoder_net_state_dict": self.encoder.state_dict(),
+            "transition_net_state_dict": self.transition.state_dict(),
             "n_steps_beta_reset": self.n_steps_beta_reset,
             "beta_starting_step": self.beta_starting_step,
             "beta": self.beta,
@@ -273,14 +281,17 @@ class VAE:
         # Load networks' weights.
         self.decoder.load_state_dict(checkpoint["decoder_net_state_dict"])
         self.encoder.load_state_dict(checkpoint["encoder_net_state_dict"])
+        self.transition.load_state_dict(checkpoint["transition_net_state_dict"])
 
         # Set the mode requested be the user, i.e. training or testing mode.
         if training_mode:
             self.decoder.train()
             self.encoder.train()
+            self.transition.train()
         else:
             self.decoder.eval()
             self.encoder.eval()
+            self.transition.eval()
 
         # Load parameters of beta scheduling.
         self.beta = checkpoint["beta"]

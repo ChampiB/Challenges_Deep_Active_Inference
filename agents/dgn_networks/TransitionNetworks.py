@@ -7,7 +7,7 @@ from agents.dgn_networks.DiagonalGaussian import DiagonalGaussian as Gaussian
 #
 # Class implementing a network modeling the temporal transition between hidden state.
 #
-class TransitionNetwork(nn.Module):
+class LinearRelu(nn.Module):
 
     def __init__(self, n_states, n_actions):
         """
@@ -21,6 +21,8 @@ class TransitionNetwork(nn.Module):
         # Create the transition network.
         self.__net = nn.Sequential(
             nn.Linear(n_states + n_actions, 100),
+            nn.ReLU(),
+            nn.Linear(100, 100),
             nn.ReLU(),
             Gaussian(100, n_states)
         )

@@ -1,18 +1,18 @@
 from math import prod
 from torch import nn
+import torch
 
 
 #
-# Class implementing a deconvolution decoder.
+# Class implementing a deconvolution decoder for 84 by 84 images.
 #
-class ConvDecoder(nn.Module):
+class ConvDecoder84(nn.Module):
 
     def __init__(self, n_states, image_shape=(1, 28, 28)):
         """
         Constructor.
         :param n_states: the number of hidden variables, i.e., number of dimension in the Gaussian.
         :param image_shape: the shape of the input images.
-        :param conv_output_shape: the shape of the last convolutional layer in the encoder.
         """
 
         super().__init__()
@@ -64,4 +64,46 @@ class ConvDecoder(nn.Module):
             raise Exception("Error: the decoder was not build().")
         x = self.__lin_net(x)
         x = self.__compat_net(x)
+        return self.__up_conv_net(x)
+
+
+#
+# Class implementing a deconvolution decoder for 64 by 64 images.
+#
+class ConvDecoder64(nn.Module):
+
+    def __init__(self, n_states, image_shape=(1, 28, 28)):
+        """
+        Constructor.
+        :param n_states: the number of hidden variables, i.e., number of dimension in the Gaussian.
+        :param image_shape: the shape of the input images.
+        """
+
+        super().__init__()
+
+        # Create the encoder network.
+        self.__lin_net = nn.Sequential(
+            nn.Linear(n_states, 256),
+            nn.ReLU(),
+            nn.Linear(256, 1600),
+            nn.ReLU(),
+        )
+        self.__up_conv_net = nn.Sequential(
+            nn.ConvTranspose2d(64, 64, (4, 4), stride=(2, 2), output_padding=(1, 1)),
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 32, (4, 4), stride=(2, 2), padding=(0, 0), output_padding=(1, 1)),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 32, (4, 4), stride=(2, 2), padding=(0, 0), output_padding=(1, 1)),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, image_shape[0], (4, 4), stride=(1, 1), padding=(0, 0), output_padding=(0, 0)),
+        )
+
+    def forward(self, x):
+        """
+        Compute the shape parameters of a product of beta distribution.
+        :param x: a hidden state.
+        :return: the shape parameters of a product of beta distribution.
+        """
+        x = self.__lin_net(x)
+        x = torch.reshape(x, (x.shape[0], 64, 5, 5))
         return self.__up_conv_net(x)

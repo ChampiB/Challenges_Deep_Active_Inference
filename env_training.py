@@ -35,5 +35,5 @@ if __name__ == '__main__':
     # Make hydra able to load tuples.
     OmegaConf.register_new_resolver("tuple", lambda *args: tuple(args))
 
-    # Train the DGN.
+    # Train the agent.
     train()

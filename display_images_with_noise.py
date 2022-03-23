@@ -2,9 +2,11 @@ from environments import EnvFactory
 from environments.wrappers.DefaultWrappers import DefaultWrappers
 from singletons.Logger import Logger
 import torch
+from torch import tensor
 import hydra
 from omegaconf import OmegaConf, open_dict
 from hydra.utils import instantiate
+from torch.distributions.multivariate_normal import MultivariateNormal
 
 
 @hydra.main(config_path="config", config_name="training")
@@ -33,19 +35,25 @@ def display_images(config):
         action = agent.step(obs, config)
         obs, _, _, _ = env.step(action)
 
-        # Generate an images using the VAE.
+        # Create noisy input image.
         image = torch.unsqueeze(obs, dim=0)
+        noise = MultivariateNormal(tensor([0.0]), tensor([[0.01]])).sample(image.shape)
+        noise = torch.squeeze(noise, dim=4)
+        epsilon = 0.0001
+        image = torch.clip(image + noise, min=epsilon, max=1-epsilon)
+
+        # Generate an images using the VAE.
         mean, log_var = agent.encoder(image)
         next_state = agent.reparameterize(mean, log_var)
-        image = agent.decoder(next_state)
-        image = torch.nn.Sigmoid()(image)
-        images.append(torch.unsqueeze(obs, dim=0))
+        image_rec = agent.decoder(next_state)
+        image_rec = torch.nn.Sigmoid()(image_rec)
         images.append(image)
+        images.append(image_rec)
 
     # Display the images in tensorboard.
     Logger.get().info("Display images...\n")
     images = torch.cat(images, dim=0)
-    agent.writer.add_images("An example of generated images", images)
+    agent.writer.add_images("An example of generated images from noisy input", images)
     Logger.get().info("End.\n")
 
 

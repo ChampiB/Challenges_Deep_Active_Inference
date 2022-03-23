@@ -10,14 +10,14 @@ from torch.optim import Adam
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.categorical import Categorical
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
-from agents.dgn_networks.EncoderNetworks import ConvEncoder as Encoder
-from agents.dgn_networks.DecoderNetworks import ConvDecoder as Decoder
-from agents.dgn_networks.TransitionNetworks import TransitionNetwork as Transition
+from agents.dgn_networks.EncoderNetworks import ConvEncoder64 as Encoder
+from agents.dgn_networks.DecoderNetworks import ConvDecoder64 as Decoder
+from agents.dgn_networks.TransitionNetworks import LinearRelu as Transition
 from agents.dgn_networks.PolicyNetworks import PolicyNetwork as Policy
-from agents.dgn_networks.CriticNetworks import CriticNetwork as Critic
+from agents.dgn_networks.CriticNetworks import LinearRelu as Critic
 from agents.planning.PMCTS import PMCTS
 from agents.planning.NodePMCTS import NodePMCTS as Node
-from tmp.tmp2.debug.Images import Images
+from tmp.tmp2.debug.Images import Images  # TODO
 from singletons.Device import Device
 
 

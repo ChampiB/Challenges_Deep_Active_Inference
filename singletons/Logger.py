@@ -13,7 +13,7 @@ class Logger:
         """
         Getter.
         :param name: the name of the logger.
-        :return: the device on which computation should be performed.
+        :return: the logger to use for logging information.
         """
         if Logger.instance is None:
             Logger.instance = logging.getLogger(name)

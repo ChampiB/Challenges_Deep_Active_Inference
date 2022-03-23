@@ -2,6 +2,7 @@ import numpy as np
 import gym
 from gym import spaces
 from environments.viewers.DefaultViewer import DefaultViewer
+from singletons.dSpritesDataset import DataSet
 
 
 #
@@ -24,14 +25,10 @@ class dSpritesEnv(gym.Env):
 
         # Initialize fields
         self.repeats = config["env"]["repeats"]
-        dataset = np.load(config["env"]["images_archive"], allow_pickle=True, encoding='latin1')
-        self.images = dataset['imgs'].reshape(-1, 64, 64, 1)
-        metadata = dataset['metadata'][()]
-        self.s_sizes = metadata['latents_sizes']  # [1 3 6 40 32 32]
-        self.s_dim = self.s_sizes.size
-        self.s_bases = np.concatenate((metadata['latents_sizes'][::-1].cumprod()[::-1][1:], np.array([1, ])))
-        self.s_bases = np.squeeze(self.s_bases)  # self.s_bases = [737280 245760  40960 1024 32]
-        self.s_names = ['color', 'shape', 'scale', 'orientation', 'posX', 'posY', 'reward']
+
+        self.images, self.s_sizes, self.s_dim, self.s_bases = \
+            DataSet.get(config["env"]["images_archive"])
+
         self.state = np.zeros(self.s_dim, dtype=self.np_precision)
         self.last_r = 0.0
         self.frame_id = 0
@@ -58,7 +55,7 @@ class dSpritesEnv(gym.Env):
         :param action: the action to perform.
         :return: next observation, reward, is the trial done?, information
         """
-        # Increase the frame index, than count the number of frames since
+        # Increase the frame index, that count the number of frames since
         # the beginning of the episode.
         self.frame_id += 1
 
@@ -75,7 +72,7 @@ class dSpritesEnv(gym.Env):
         # Make sure the environment is reset if the maximum number of steps in
         # the episode has been reached.
         if self.frame_id >= self.max_episode_length:
-            return self.current_frame(), self.last_r, True, {}
+            return self.current_frame(), -1.0, True, {}
         else:
             return self.current_frame(), self.last_r, False, {}
 
@@ -122,7 +119,7 @@ class dSpritesEnv(gym.Env):
         self.state = np.zeros(self.s_dim, dtype=self.np_precision)
         for s_i, s_size in enumerate(self.s_sizes):
             self.state[s_i] = np.random.randint(s_size)
-
+ 
     #
     # Actions
     #

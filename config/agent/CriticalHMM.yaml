@@ -1,0 +1,24 @@
+name: critical_hmm
+
+defaults:
+  - encoder: convolutional64
+  - decoder: convolutional64
+  - transition: linearRelu
+  - critic: linearRelu
+
+_target_: agents.CriticalHMM.CriticalHMM
+
+# Miscellaneous
+n_states: 10
+vfe_lr: 0.0001
+efe_lr: 0.0001
+discount_factor: 0.9
+n_steps_between_synchro: 10
+queue_capacity: 50000
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CriticalHMM_${env.name}_${seed}"
+
+# Beta scheduling
+beta: 1.0
+beta_starting_step: 0
+beta_rate: 0.0000
+n_steps_beta_reset: 10000000000

@@ -1,0 +1,2 @@
+name: "RandomdSprites"
+images_archive: "${oc.env:DATA_DIRECTORY}/dsprites-ds/dsprites.npz"

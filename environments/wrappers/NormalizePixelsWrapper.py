@@ -13,6 +13,6 @@ class NormalizePixelsWrapper(gym.ObservationWrapper):
         :param observation: the input observation.
         :return: the scaled observation.
         """
-        epsilon = 0.01
+        epsilon = 0.0001
         observation = np.array(observation).astype(np.float32) / 255.0
         return np.clip(observation, a_min=epsilon, a_max=1-epsilon)
