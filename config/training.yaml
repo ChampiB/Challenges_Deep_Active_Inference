@@ -14,5 +14,5 @@ debug_mode: true
 n_training_steps: 10000000
 buffer_start_size: 50
 batch_size: 50
-seed: 42
+seed: 100
 nb_envs: 5

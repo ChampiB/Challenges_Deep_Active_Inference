@@ -11,11 +11,12 @@ _target_: agents.CriticalHMM.CriticalHMM
 # Miscellaneous
 n_states: 10
 vfe_lr: 0.0001
-efe_lr: 0.0001
+efe_lr: 0.001
 discount_factor: 0.9
 n_steps_between_synchro: 10
 queue_capacity: 50000
 tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CriticalHMM_${env.name}_${seed}"
+g_value: "efe"
 
 # Beta scheduling
 beta: 1.0

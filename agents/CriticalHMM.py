@@ -6,11 +6,14 @@ from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 from torch.distributions.multivariate_normal import MultivariateNormal
+import random
+import math
 from torch.distributions.categorical import Categorical
 from torch import nn, zeros, eye, unsqueeze, softmax
 from torch.optim import Adam
 import os
 import torch
+from agents.dqn_networks.PolicyNetworks import ConvPolicy  # TODO
 
 
 #
@@ -19,10 +22,11 @@ import torch
 #
 class CriticalHMM:
 
-    def __init__(self, encoder, decoder, transition, critic, discount_factor=0.9,
-                 n_steps_beta_reset=10e16, beta=1, efe_lr=0.0001, vfe_lr=0.0001,
-                 beta_starting_step=0, beta_rate=0, queue_capacity=10000,
-                 n_steps_between_synchro=10, tensorboard_dir="./data/runs/VAE", **_):
+    def __init__(
+            self, encoder, decoder, transition, critic, discount_factor,
+            n_steps_beta_reset, beta, efe_lr, vfe_lr, beta_starting_step, beta_rate,
+            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value, **_
+    ):
         """
         Constructor
         :param encoder: the encoder network
@@ -39,14 +43,24 @@ class CriticalHMM:
         :param n_steps_between_synchro: the number of steps between two synchronisations
             of the target and the critic
         :param tensorboard_dir: the directory in which tensorboard's files will be written
+        :param g_value: the type of value to be used, i.e. "reward" or "efe"
         """
+
+        # TODO TMP
+        self.epsilon_start = 0.9  # The initial value of epsilon (for epsilon-greedy).
+        self.epsilon_end = 0.05  # The final value of epsilon (for epsilon-greedy).
+        self.epsilon_decay = 1000  # How slowly should epsilon decay? The bigger, the slower.
+        self.n_actions = 4
 
         # Neural networks.
         self.encoder = encoder
         self.decoder = decoder
         self.transition = transition
+
         self.critic = critic
-        self.target = copy.deepcopy(critic)
+        # TODO self.critic = ConvPolicy((1, 64, 64), 4)
+        self.target = copy.deepcopy(self.critic)
+        self.target.eval()
 
         # Optimizers.
         vfe_params = \
@@ -71,7 +85,15 @@ class CriticalHMM:
         self.discount_factor = discount_factor
         self.buffer = ReplayBuffer(capacity=queue_capacity)
         self.steps_done = 0
+        self.g_value = g_value
+
+        # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
+        self.writer.add_custom_scalars({
+            "Actions": {
+                "acts_prob": ["Multiline", ["acts_prob/down", "acts_prob/up", "acts_prob/left", "acts_prob/right"]],
+            },
+        })
 
     def step(self, obs, config):
         """
@@ -81,15 +103,36 @@ class CriticalHMM:
         :return: the random action
         """
 
-        # Inference.
-        mean_hat, log_var_hat = self.encoder(torch.unsqueeze(obs, dim=0))
-        states = self.reparameterize(mean_hat, log_var_hat)
+        # Extract the current state from the current observation.
+        obs = torch.unsqueeze(obs, dim=0)
+        state, _ = self.encoder(obs)
+
+        # Compute the current epsilon value.
+        epsilon_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
+            math.exp(-1. * self.steps_done / self.epsilon_decay)
+
+        # Sample a number between 0 and 1, and either execute a random action or
+        # the reward maximizing action according to the sampled value.
+        sample = random.random()
+        if sample > epsilon_threshold:
+            with torch.no_grad():
+                return self.critic(state).max(1)[1].item()  # Best action.
+        else:
+            return np.random.choice(self.n_actions)  # Random action.
 
         # Planning as inference.
-        actions_prob = softmax(self.critic(states), dim=1)
+        # TODO actions_prob = softmax(-self.critic(mean_hat), dim=1)
+        # TODO actions_prob = softmax(-self.critic(torch.unsqueeze(obs, dim=0)), dim=1)
+
+        # TODO if config["debug_mode"]:
+        # TODO     self.writer.add_scalar("acts_prob/down",  actions_prob[0][0], self.steps_done)
+        # TODO     self.writer.add_scalar("acts_prob/up",    actions_prob[0][1], self.steps_done)
+        # TODO     self.writer.add_scalar("acts_prob/left",  actions_prob[0][2], self.steps_done)
+        # TODO     self.writer.add_scalar("acts_prob/right", actions_prob[0][3], self.steps_done)
 
         # Action selection.
-        return Categorical(actions_prob).sample()
+        # TODO argmax instead of sampling?
+        # TODO return Categorical(actions_prob).sample()
 
     def train(self, env, config):
         """
@@ -128,10 +171,6 @@ class CriticalHMM:
             if self.steps_done % config["checkpoint"]["frequency"] == 0:
                 self.save(config["checkpoint"]["directory"])
 
-            # Synchronize the target with the critic (if needed).
-            if self.steps_done % self.n_steps_between_synchro == 0:
-                self.synchronize_target()
-
             # Render the environment and monitor total rewards (if needed).
             if config["debug_mode"]:
                 self.total_rewards += reward
@@ -154,6 +193,10 @@ class CriticalHMM:
         :param config: the hydra configuration
         :return: nothing
         """
+
+        # Synchronize the target with the critic (if needed).
+        if self.steps_done % self.n_steps_between_synchro == 0:
+            self.synchronize_target()
 
         # Sample the replay buffer.
         obs, actions, rewards, done, next_obs = self.buffer.sample(config["batch_size"])
@@ -193,41 +236,34 @@ class CriticalHMM:
         """
 
         # Compute required vectors.
-        mean_hat, log_var_hat = self.encoder(obs)
-        states = self.reparameterize(mean_hat, log_var_hat)
-        mean, log_var = self.transition(states, actions)
-        next_state = self.reparameterize(mean, log_var)
+        mean_hat_t, log_var_hat_t = self.encoder(obs)
+        _, log_var = self.transition(mean_hat_t, actions)
         mean_hat, log_var_hat = self.encoder(next_obs)
 
-        # Compute the expected free energy at time t.
-        immediate_efe = - rewards + self.entropy_gaussian(log_var_hat) - self.entropy_gaussian(log_var)
-        immediate_efe = immediate_efe.to(torch.float32)
-
-        # Compute the future expected free energy.
-        future_efe = self.target(next_state).to(torch.float32).max(dim=1)[0]
-        future_efe = future_efe * torch.logical_not(done).to(torch.int64)
-
-        # Compute the Expected Free Energy.
-        efe = immediate_efe + self.discount_factor * future_efe
-
-        # Compute the prediction of the critic network.
-        critic_pred = self.critic(states)
+        # Compute the G-values of each action in the current state.
+        critic_pred = self.critic(mean_hat_t)
         critic_pred = critic_pred.gather(dim=1, index=unsqueeze(actions.to(torch.int64), dim=1))
-        critic_pred = torch.squeeze(critic_pred)
 
-        # Compute the expected free energy loss.
-        efe_loss = nn.SmoothL1Loss()
-        efe_loss = efe_loss(critic_pred, efe.detach())
+        # For each batch entry where the simulation did not stop,
+        # compute the value of the next states.
+        future_gval = torch.zeros(config["batch_size"])
+        future_gval[torch.logical_not(done)] = self.target(mean_hat[torch.logical_not(done)]).max(1)[0]
+        future_gval = future_gval.detach()
 
-        # Display debug information, if needed.
-        if config["debug_mode"] and self.steps_done % 10 == 0:
-            self.writer.add_scalar("(mean) immediate efe", immediate_efe.mean(), self.steps_done)
-            self.writer.add_scalar("(mean) future efe ", future_efe.mean(), self.steps_done)
-            self.writer.add_scalar("discount factor", self.discount_factor, self.steps_done)
-            self.writer.add_scalar("(mean) efe", efe.mean(), self.steps_done)
-            self.writer.add_scalar("efe_loss", efe_loss, self.steps_done)
+        # Compute the immediate G-value.
+        immediate_gval = rewards
 
-        return efe_loss
+        # Add information gain to the immediate g-value (if needed).
+        if self.g_value == "efe":
+            immediate_gval += self.entropy_gaussian(log_var_hat) - self.entropy_gaussian(log_var)
+            immediate_gval = immediate_gval.to(torch.float32)
+
+        # Compute the discounted G values.
+        gval = immediate_gval + self.discount_factor * future_gval
+
+        # Compute the loss function.
+        loss = nn.SmoothL1Loss()
+        return loss(critic_pred, gval.unsqueeze(1))
 
     def compute_vfe(self, config, obs, actions, next_obs):
         """
@@ -240,6 +276,7 @@ class CriticalHMM:
         """
 
         # Compute required vectors.
+        # TODO optimize the computation of those vector across efe and vfe computation
         mean_hat, log_var_hat = self.encoder(obs)
         states = self.reparameterize(mean_hat, log_var_hat)
         mean_hat, log_var_hat = self.encoder(next_obs)
@@ -342,7 +379,7 @@ class CriticalHMM:
         Synchronize the target with the critic.
         :return: nothing.
         """
-        self.target.load_state_dict(self.critic.state_dict())
+        self.target = copy.deepcopy(self.critic)
         self.target.eval()
 
     def save(self, checkpoint_directory):
@@ -391,16 +428,19 @@ class CriticalHMM:
         self.decoder.load_state_dict(checkpoint["decoder_net_state_dict"])
         self.encoder.load_state_dict(checkpoint["encoder_net_state_dict"])
         self.transition.load_state_dict(checkpoint["transition_net_state_dict"])
+        self.critic.load_state_dict(checkpoint["critic_net_state_dict"])
 
         # Set the mode requested be the user, i.e. training or testing mode.
         if training_mode:
             self.decoder.train()
             self.encoder.train()
             self.transition.train()
+            self.critic.train()
         else:
             self.decoder.eval()
             self.encoder.eval()
             self.transition.eval()
+            self.critic.eval()
 
         # Load parameters of beta scheduling.
         self.beta = checkpoint["beta"]

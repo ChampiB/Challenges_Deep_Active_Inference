@@ -1,0 +1,17 @@
+name: dqn
+
+_target_: agents.DQN.DQN
+
+# Miscellaneous
+image_shape: ${images.shape}
+n_actions: ${env.n_actions}
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/DQN_${env.name}_${seed}"
+n_steps_between_synchro: 10
+discount_factor: 0.9
+queue_capacity: 10000
+lr: 0.001
+
+# Epsilon greedy scheduling
+epsilon_start: 0.9
+epsilon_end: 0.05
+epsilon_decay: 200

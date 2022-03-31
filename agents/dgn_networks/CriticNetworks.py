@@ -21,6 +21,8 @@ class LinearRelu(nn.Module):
             nn.ReLU(),
             nn.Linear(100, 100),
             nn.ReLU(),
+            nn.Linear(100, 100),
+            nn.ReLU(),
             nn.Linear(100, n_actions),
         )
 
