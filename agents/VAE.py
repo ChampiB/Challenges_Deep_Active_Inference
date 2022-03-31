@@ -74,7 +74,7 @@ class VAE:
         obs = env.reset()
 
         # Render the environment (if needed).
-        if config["debug_mode"]:
+        if config["display_gui"]:
             env.render()
 
         # Train the agent.
@@ -100,7 +100,7 @@ class VAE:
                 self.save(config["checkpoint"]["directory"])
 
             # Render the environment.
-            if config["debug_mode"]:
+            if config["display_gui"]:
                 env.render()
 
             # Reset the environment when a trial ends.
@@ -158,7 +158,7 @@ class VAE:
         vfe_loss = self.beta * kl_div_hs - log_likelihood
 
         # Display debug information, if needed.
-        if config["debug_mode"] and self.steps_done % 10 == 0:
+        if config["enable_tensorboard"] and self.steps_done % 10 == 0:
             self.writer.add_scalar("KL_div_hs", kl_div_hs, self.steps_done)
             self.writer.add_scalar("neg_log_likelihood", - log_likelihood, self.steps_done)
             self.writer.add_scalar("Beta", self.beta, self.steps_done)

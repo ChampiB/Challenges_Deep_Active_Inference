@@ -97,7 +97,7 @@ class DQN:
         obs = env.reset()
 
         # Render the environment.
-        if config["debug_mode"]:
+        if config["display_gui"]:
             env.render()
 
         # Train the agent.
@@ -123,7 +123,7 @@ class DQN:
                 self.save(config["checkpoint"]["directory"])
 
             # Render the environment if needed.
-            if config["debug_mode"]:
+            if config["enable_tensorboard"]:
                 self.debug["total_rewards"] += reward
                 self.writer.add_scalar("Rewards", self.debug["total_rewards"].item(), self.steps_done)
                 env.render()
@@ -185,7 +185,7 @@ class DQN:
         self.optimizer.step()
 
         # Print debug information.
-        if config["debug_mode"] and self.steps_done % 10 == 0:
+        if config["enable_tensorboard"] and self.steps_done % 10 == 0:
             self.writer.add_scalar("Q-values loss", self.debug["loss"].item(), self.steps_done)
 
     def compute_loss(self, config, obs, actions, rewards, done, next_obs):

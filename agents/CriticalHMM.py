@@ -6,6 +6,7 @@ from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 from torch.distributions.multivariate_normal import MultivariateNormal
+from singletons.Device import Device
 import random
 import math
 from torch.distributions.categorical import Categorical
@@ -62,6 +63,9 @@ class CriticalHMM:
         self.target = copy.deepcopy(self.critic)
         self.target.eval()
 
+        # Ensure models are on the right device.
+        self.to_device()
+
         # Optimizers.
         vfe_params = \
             list(encoder.parameters()) + \
@@ -95,6 +99,17 @@ class CriticalHMM:
             },
         })
 
+    def to_device(self):
+        """
+        Send the models on the right device, i.e. CPU or GPU.
+        :return: nothins
+        """
+        self.encoder.to(Device.get())
+        self.decoder.to(Device.get())
+        self.transition.to(Device.get())
+        self.critic.to(Device.get())
+        self.target.to(Device.get())
+
     def step(self, obs, config):
         """
         Select a random action based on the critic ouput
@@ -108,31 +123,31 @@ class CriticalHMM:
         state, _ = self.encoder(obs)
 
         # Compute the current epsilon value.
-        epsilon_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-            math.exp(-1. * self.steps_done / self.epsilon_decay)
+        # TODO epsilon_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
+        # TODO     math.exp(-1. * self.steps_done / self.epsilon_decay)
 
         # Sample a number between 0 and 1, and either execute a random action or
         # the reward maximizing action according to the sampled value.
-        sample = random.random()
-        if sample > epsilon_threshold:
-            with torch.no_grad():
-                return self.critic(state).max(1)[1].item()  # Best action.
-        else:
-            return np.random.choice(self.n_actions)  # Random action.
+        # TODO sample = random.random()
+        # TODO if sample > epsilon_threshold:
+        # TODO     with torch.no_grad():
+        # TODO         return self.critic(state).max(1)[1].item()  # Best action.
+        # TODO else:
+        # TODO     return np.random.choice(self.n_actions)  # Random action.
 
         # Planning as inference.
-        # TODO actions_prob = softmax(-self.critic(mean_hat), dim=1)
-        # TODO actions_prob = softmax(-self.critic(torch.unsqueeze(obs, dim=0)), dim=1)
+        actions_prob = softmax(self.critic(state), dim=1)
 
-        # TODO if config["debug_mode"]:
+        # TODO actions_prob = softmax(-self.critic(torch.unsqueeze(obs, dim=0)), dim=1)
+        # TODO if config["enable_tensorboard"]:
         # TODO     self.writer.add_scalar("acts_prob/down",  actions_prob[0][0], self.steps_done)
         # TODO     self.writer.add_scalar("acts_prob/up",    actions_prob[0][1], self.steps_done)
         # TODO     self.writer.add_scalar("acts_prob/left",  actions_prob[0][2], self.steps_done)
         # TODO     self.writer.add_scalar("acts_prob/right", actions_prob[0][3], self.steps_done)
+        # TODO argmax instead of sampling?
 
         # Action selection.
-        # TODO argmax instead of sampling?
-        # TODO return Categorical(actions_prob).sample()
+        return Categorical(actions_prob).sample()
 
     def train(self, env, config):
         """
@@ -146,7 +161,7 @@ class CriticalHMM:
         obs = env.reset()
 
         # Render the environment (if needed).
-        if config["debug_mode"]:
+        if config["display_gui"]:
             env.render()
 
         # Train the agent.
@@ -172,7 +187,7 @@ class CriticalHMM:
                 self.save(config["checkpoint"]["directory"])
 
             # Render the environment and monitor total rewards (if needed).
-            if config["debug_mode"]:
+            if config["enable_tensorboard"]:
                 self.total_rewards += reward
                 self.writer.add_scalar("Rewards", self.total_rewards, self.steps_done)
                 env.render()
@@ -246,7 +261,7 @@ class CriticalHMM:
 
         # For each batch entry where the simulation did not stop,
         # compute the value of the next states.
-        future_gval = torch.zeros(config["batch_size"])
+        future_gval = torch.zeros(config["batch_size"], device=Device.get())
         future_gval[torch.logical_not(done)] = self.target(mean_hat[torch.logical_not(done)]).max(1)[0]
         future_gval = future_gval.detach()
 
@@ -290,7 +305,7 @@ class CriticalHMM:
         vfe_loss = self.beta * kl_div_hs - log_likelihood
 
         # Display debug information, if needed.
-        if config["debug_mode"] and self.steps_done % 10 == 0:
+        if config["enable_tensorboard"] and self.steps_done % 10 == 0:
             self.writer.add_scalar("KL_div_hs", kl_div_hs, self.steps_done)
             self.writer.add_scalar("neg_log_likelihood", - log_likelihood, self.steps_done)
             self.writer.add_scalar("Beta", self.beta, self.steps_done)
@@ -371,7 +386,7 @@ class CriticalHMM:
         :return: a sample from the Gaussian on which back-propagation can be performed
         """
         nb_states = mean.shape[1]
-        epsilon = MultivariateNormal(zeros(nb_states), eye(nb_states)).sample([mean.shape[0]])
+        epsilon = MultivariateNormal(zeros(nb_states), eye(nb_states)).sample([mean.shape[0]]).to(Device.get())
         return epsilon * (0.5 * log_var).exp() + mean
 
     def synchronize_target(self):
@@ -441,6 +456,9 @@ class CriticalHMM:
             self.encoder.eval()
             self.transition.eval()
             self.critic.eval()
+
+        # Ensure models are on the right device.
+        self.to_device()
 
         # Load parameters of beta scheduling.
         self.beta = checkpoint["beta"]

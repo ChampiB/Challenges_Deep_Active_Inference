@@ -12,7 +12,7 @@ _target_: agents.CriticalHMM.CriticalHMM
 n_states: 10
 vfe_lr: 0.0001
 efe_lr: 0.001
-discount_factor: 0.9
+discount_factor: 1
 n_steps_between_synchro: 10
 queue_capacity: 50000
 tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CriticalHMM_${env.name}_${seed}"
