@@ -3,7 +3,7 @@ from omegaconf import OmegaConf
 import hydra
 
 
-@hydra.main(config_path="config", config_name="training")
+@hydra.main(config_path="config", config_name="analysis")
 def main(config):
     # Make hydra able to load tuples.
     OmegaConf.register_new_resolver("tuple", lambda *args: tuple(args))

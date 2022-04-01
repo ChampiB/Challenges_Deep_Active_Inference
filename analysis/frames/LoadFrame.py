@@ -6,30 +6,28 @@ from singletons.dSpritesDataset import DataSet
 
 
 #
-# A class representing the home page.
+# A class representing the page used to load the model and dataset.
 #
-class HomeFrame(tk.Frame):
+class LoadFrame(tk.Frame):
 
-    def __init__(self, parent, controller, config, gui_data):
+    def __init__(self, parent, gui):
         """
         Constructor of the home page.
         :param parent: the parent.
-        :param controller: the controller.
-        :param config: the hydra config.
-        :param gui_data: the class containing the data of the GUI.
+        :param gui: the class containing the data of the GUI.
         """
 
         tk.Frame.__init__(self, parent)
 
         # Remember parent frame and configuration
-        self.gui_data = gui_data
+        self.gui = gui
         self.parent = parent
-        self.config = config
 
         # Colors
-        self.red = "#e00000"
-        self.green = "#1d7500"
-        self.orange = "#de9b00"
+        self.red = gui.config["colors"]["red"]
+        self.green = gui.config["colors"]["green"]
+        self.orange = gui.config["colors"]["orange"]
+        self.white = gui.config["colors"]["white"]
 
         # Model button and label
         self.model_label = tk.Label(self, text="Model:")
@@ -51,7 +49,7 @@ class HomeFrame(tk.Frame):
 
         # Load button
         self.load_button = tk.Button(
-            self, text='load', width=20, height=3, bg='white',
+            self, text='load', width=20, height=3, bg=self.white,
             command=self.load_data_and_model
         )
         self.load_button.grid(row=2, column=1, sticky=tk.NSEW)
@@ -112,9 +110,9 @@ class HomeFrame(tk.Frame):
             return
 
         # Load and save the model and dataset in the GUI
-        self.gui_data.model = instantiate(self.config["agent"])
-        self.gui_data.model.load(self.model_file.name)
-        self.gui_data.dataset = DataSet.get(self.dataset_file.name)
+        self.gui.model = instantiate(self.gui.config["agent"])
+        self.gui.model.load(self.model_file.name)
+        self.gui.dataset = DataSet.get(self.dataset_file.name)
 
     def refresh(self):
         pass

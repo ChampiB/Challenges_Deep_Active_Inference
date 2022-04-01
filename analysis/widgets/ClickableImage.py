@@ -16,8 +16,9 @@ class ClickableImage(tk.Button):
         :param height: the height of the clickable image.
         """
         # Colors
-        self.green = "#1d7500"
-        self.orange = "#de9b00"
+        self.green = parent.green
+        self.orange = parent.orange
+        self.white = parent.white
 
         self.image = torch.zeros([64, 64]).numpy() if image is None else image
         self.image = ImageTk.PhotoImage(image=Image.fromarray(self.image))
@@ -40,7 +41,7 @@ class ClickableImage(tk.Button):
             self.added_to_set = True
         else:
             self.parent.images_to_be_added.remove(self.index)
-            self.configure(bg="white")
+            self.configure(bg=self.white)
             self.added_to_set = False
 
     def set_image(self, image, index):
@@ -52,5 +53,5 @@ class ClickableImage(tk.Button):
         """
         self.index = index
         self.image = ImageTk.PhotoImage(image=Image.fromarray(np.squeeze(image*255)))
-        self.configure(image=self.image, bg="white")
+        self.configure(image=self.image, bg=self.white)
         self.added_to_set = False

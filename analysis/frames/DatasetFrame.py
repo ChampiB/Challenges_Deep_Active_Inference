@@ -11,19 +11,22 @@ from analysis.widgets.ClickableImage import ClickableImage
 #
 class DatasetFrame(tk.Frame):
 
-    def __init__(self, parent, controller, config, gui_data):
+    def __init__(self, parent, gui):
         """
         Create the dataset page.
         :param parent: the parent of the frame.
-        :param controller: the controller of the frame.
-        :param config: the hydra configuration.
-        :param gui_data: the gui's data.
+        :param gui: the gui's data.
         """
         tk.Frame.__init__(self, parent)
 
-        # Remember parent and gui data
+        # Remember config, parent and gui data
         self.parent = parent
-        self.gui_data = gui_data
+        self.gui = gui
+
+        # Colors
+        self.white = gui.config["colors"]["white"]
+        self.green = gui.config["colors"]["green"]
+        self.orange = gui.config["colors"]["orange"]
 
         # The list of indices of all the images that needs to be added to the sample
         self.images_to_be_added = []
@@ -46,21 +49,21 @@ class DatasetFrame(tk.Frame):
 
         # Prev button
         self.load_button = tk.Button(
-            self, text='prev', height=2, bg='white',
+            self, text='prev', height=2, bg=self.white,
             command=self.display_previous_images
         )
         self.load_button.grid(row=self.height+1, column=0, sticky=tk.NSEW)
 
         # Next button
         self.load_button = tk.Button(
-            self, text='next', height=2, bg='white',
+            self, text='next', height=2, bg=self.white,
             command=self.display_next_images
         )
         self.load_button.grid(row=self.height+1, column=self.width-1, sticky=tk.NSEW)
 
         # Add button
         self.load_button = tk.Button(
-            self, text='add', height=2, bg='white',
+            self, text='add', height=2, bg=self.white,
             command=self.add_images_to_sample
         )
         self.load_button.grid(row=self.height+1, column=int(self.width/2), sticky=tk.NSEW)
@@ -125,7 +128,7 @@ class DatasetFrame(tk.Frame):
 
         # Add button to select add target image
         self.load_button_2 = tk.Button(
-            self, text='add', height=2, bg='white', width=10,
+            self, text='add', height=2, bg=self.white, width=10,
             command=self.add_target_image_to_sample
         )
         self.load_button_2.grid(row=self.height+2, column=self.width+7, sticky=tk.NSEW)
@@ -154,7 +157,7 @@ class DatasetFrame(tk.Frame):
         """
         self.images_to_be_added = []
         self.curr_index += self.width * self.height
-        if self.curr_index > len(self.gui_data.dataset[0]):
+        if self.curr_index > len(self.gui.dataset[0]):
             self.curr_index -= self.width * self.height
         self.refresh()
 
@@ -164,8 +167,8 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         images = self.get_images_from_dataset([self.get_index_of_target_image()])
-        states, _ = self.gui_data.model.encoder(images)
-        self.gui_data.samples.append((images[0], states[0]))
+        states, _ = self.gui.model.encoder(images)
+        self.gui.samples.append((images[0], states[0]))
 
     def get_index_of_target_image(self):
         """
@@ -181,7 +184,7 @@ class DatasetFrame(tk.Frame):
         state[5] = float(self.y_pos_cb.get())
 
         # Retreive image's index and image
-        return np.dot(state, self.gui_data.dataset[3]).astype(int)
+        return np.dot(state, self.gui.dataset[3]).astype(int)
 
     def refresh_target_image(self, event):
         """
@@ -190,7 +193,7 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         # Check that dataset is available
-        if self.gui_data.dataset is None:
+        if self.gui.dataset is None:
             return
 
         # Retreive the index of the target image
@@ -210,7 +213,7 @@ class DatasetFrame(tk.Frame):
         :param indices: the indices of the images to be retreived.
         :return: the retieved images.
         """
-        images = self.gui_data.dataset[0][indices]
+        images = self.gui.dataset[0][indices]
         images = np.moveaxis(images, [0, 1, 2, 3], [0, 2, 3, 1])
         return torch.from_numpy(images).to(torch.float32)
 
@@ -220,9 +223,9 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         images = self.get_images_from_dataset(self.images_to_be_added)
-        states, _ = self.gui_data.model.encoder(images)
+        states, _ = self.gui.model.encoder(images)
         for i in range(0, len(self.images_to_be_added)):
-            self.gui_data.samples.append((images[i], states[i]))
+            self.gui.samples.append((images[i], states[i]))
         self.refresh()
 
     def refresh(self):
@@ -231,14 +234,14 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         # Check that dataset if loaded
-        if self.gui_data.dataset is None:
+        if self.gui.dataset is None:
             return
 
         # Refresh image grid
         for x in range(0, self.width):
             for y in range(0, self.height):
                 image_id = self.curr_index + x + y * self.width
-                image = self.gui_data.dataset[0][image_id]
+                image = self.gui.dataset[0][image_id]
                 self.buttons[x][y].set_image(image=image, index=image_id)
         self.images_to_be_added = []
 

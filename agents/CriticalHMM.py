@@ -135,8 +135,10 @@ class CriticalHMM:
         # TODO else:
         # TODO     return np.random.choice(self.n_actions)  # Random action.
 
+        return self.critic(state).max(1)[1].item()  # Best action.
+
         # Planning as inference.
-        actions_prob = softmax(self.critic(state), dim=1)
+        # TODO actions_prob = softmax(self.critic(state), dim=1)
 
         # TODO actions_prob = softmax(-self.critic(torch.unsqueeze(obs, dim=0)), dim=1)
         # TODO if config["enable_tensorboard"]:
@@ -147,7 +149,7 @@ class CriticalHMM:
         # TODO argmax instead of sampling?
 
         # Action selection.
-        return Categorical(actions_prob).sample()
+        # TODO return Categorical(actions_prob).sample()
 
     def train(self, env, config):
         """
@@ -190,6 +192,7 @@ class CriticalHMM:
             if config["enable_tensorboard"]:
                 self.total_rewards += reward
                 self.writer.add_scalar("Rewards", self.total_rewards, self.steps_done)
+            if config["display_gui"]:
                 env.render()
 
             # Reset the environment when a trial ends.
@@ -437,7 +440,7 @@ class CriticalHMM:
             return
 
         # Load checkpoint from path.
-        checkpoint = torch.load(checkpoint_directory)
+        checkpoint = torch.load(checkpoint_directory, map_location=Device.get())
 
         # Load networks' weights.
         self.decoder.load_state_dict(checkpoint["decoder_net_state_dict"])

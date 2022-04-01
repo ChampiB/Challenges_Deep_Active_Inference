@@ -126,6 +126,7 @@ class DQN:
             if config["enable_tensorboard"]:
                 self.debug["total_rewards"] += reward
                 self.writer.add_scalar("Rewards", self.debug["total_rewards"].item(), self.steps_done)
+            if config["display_gui"]:
                 env.render()
 
             # Reset the environment when a trial ends.

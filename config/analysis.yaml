@@ -1,0 +1,23 @@
+gui:
+  title: "Model analysis"
+
+colors:
+  red: "#e00000"
+  green: "#1d7500"
+  orange: "#de9b00"
+  white: "#ffffff"
+
+gallery:
+  n_samples_per_page: 10
+
+
+
+defaults:
+  - env: dSprites
+  - agent: CriticalHMM
+  - _self_
+
+seed: 8
+
+images:
+  shape: ${tuple:1,64,64}

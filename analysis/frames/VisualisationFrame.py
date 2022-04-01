@@ -5,11 +5,14 @@ from analysis.widgets.LatentSpaceCanvas import LatentSpaceCanvas
 
 class VisualisationFrame(tk.Frame):
 
-    def __init__(self, parent, controller, config, gui_data):
+    def __init__(self, parent, gui):
         tk.Frame.__init__(self, parent)
 
         # Save the number of latent dimensions.
-        self.n_latent = config["agent"]["n_states"]
+        self.n_latent = gui.config["agent"]["n_states"]
+
+        # Colors
+        self.white = gui.config["colors"]["white"]
 
         # Label and combobox for the x dimension.
         self.label_dim_x = tk.Label(self, text="Dim x:")
@@ -36,7 +39,7 @@ class VisualisationFrame(tk.Frame):
         self.cb_dim_y.bind("<<ComboboxSelected>>", self.refresh_callback)
 
         # Add check box to switch between samples and grid.
-        self.check_box_val = tk.IntVar()
+        self.check_box_val = tk.IntVar(value=1)
         self.check_box = tk.Checkbutton(self, text="Sample/Grid", variable=self.check_box_val, command=self.refresh)
         self.check_box.grid(row=0, column=4, sticky=tk.NSEW)
 
@@ -51,7 +54,7 @@ class VisualisationFrame(tk.Frame):
             self.default_vector_coords.append(coord_box)
 
         # Create the canvas.
-        self.canvas = LatentSpaceCanvas(self, gui_data)
+        self.canvas = LatentSpaceCanvas(self, gui)
         self.canvas.grid(row=1, column=0, columnspan=6+self.n_latent, sticky=tk.NSEW, padx=5, pady=5)
 
     def refresh_callback(self, event):

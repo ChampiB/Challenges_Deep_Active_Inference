@@ -1,11 +1,12 @@
 import tkinter as tk
-from analysis.frames.HomeFrame import HomeFrame
+from analysis.frames.LoadFrame import LoadFrame
 from analysis.frames.EncoderDecoderFrame import EncoderDecoderFrame
 from analysis.frames.TransitionFrame import TransitionFrame
 from analysis.frames.DatasetFrame import DatasetFrame
 from analysis.frames.SampleFrame import SampleFrame
 from analysis.frames.VisualisationFrame import VisualisationFrame
 from analysis.frames.CriticFrame import CriticFrame
+from analysis.widgets.NavBar import NavBar
 
 
 #
@@ -14,50 +15,64 @@ from analysis.frames.CriticFrame import CriticFrame
 class AnalysisGUI:
 
     def __init__(self, config):
-        # Store config
+        """
+        Construct the graphical user interface used to analyse the model.
+        :param config: the hydra configuration.
+        """
+
+        # Store the hydra configuration.
         self.config = config
 
-        # Create main window
+        # Load the GUI attributes from the hydra configuration.
+        self.n_samples_per_page = config["gallery"]["n_samples_per_page"]
+        self.white = config["colors"]["white"]
+
+        # Create the main window.
         self.window = tk.Tk()
-        self.window.title("Model analysis")
+        self.window.title(config["gui"]["title"])
+        self.window.geometry(self.get_screen_size())
 
-        screen_size = str(self.window.winfo_screenwidth())
-        screen_size += "x"
-        screen_size += str(self.window.winfo_screenheight())
-        self.window.geometry(screen_size)
-
-        # Create navigation bar
-        self.navbar = tk.Menu(self.window)
-
-        self.navbar.add_command(label="Home", command=self.home_cmd)
-
-        self.modelbar = tk.Menu(self.navbar, tearoff=0)
-        self.modelbar.add_command(label="Encoder/Decoder", command=self.encoder_decoder_cmd)
-        self.modelbar.add_command(label="Transition", command=self.transition_cmd)
-        self.modelbar.add_command(label="Critic", command=self.critic_cmd)
-        self.navbar.add_cascade(label="Model", menu=self.modelbar)
-
-        self.navbar.add_command(label="Dataset", command=self.dataset_cmd)
-
-        self.navbar.add_command(label="Sample", command=self.sample_cmd)
-        self.navbar.add_command(label="Visualisation", command=self.visualisation_cmd)
-
+        # Create the navigation bar.
+        self.navbar = NavBar(self)
         self.window.config(menu=self.navbar)
 
-        # The GUI's model, dataset and sample
+        # The model, dataset and sample of the graphical user interface.
         self.model = None
         self.dataset = None
         self.samples = []
-        self.selected_samples = []
 
-        # Create the GUI's frames
+        # Create the frame container.
         self.container = tk.Frame(self.window)
         self.container.pack(side="top", fill="both", expand=True)
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
 
+        # The dictionary of frames' constructor.
+        self.frames_classes = {
+            "LoadFrame": LoadFrame,
+            "EncoderDecoderFrame": EncoderDecoderFrame,
+            "TransitionFrame": TransitionFrame,
+            "CriticFrame": CriticFrame,
+            "DatasetFrame": DatasetFrame,
+            "SampleFrame": SampleFrame,
+            "VisualisationFrame": VisualisationFrame
+        }
+
+        # The list of currently loaded frames.
         self.frames = {}
-        self.show_frame("HomeFrame")
+
+        # Show the page used to load the model and dataset.
+        self.show_frame("LoadFrame")
+
+    def get_screen_size(self):
+        """
+        Getter.
+        :return: the screen' size.
+        """
+        screen_size = str(self.window.winfo_screenwidth())
+        screen_size += "x"
+        screen_size += str(self.window.winfo_screenheight())
+        return screen_size
 
     def show_frame(self, frame_name):
         """
@@ -65,46 +80,20 @@ class AnalysisGUI:
         :param frame_name: the name of the frame to show.
         :return: nothing.
         """
-        # Construct the frame that does not already exist
+        # Construct the frame if it does not already exist.
         if frame_name not in self.frames.keys():
-            frames = {
-                "HomeFrame": HomeFrame,
-                "EncoderDecoderFrame": EncoderDecoderFrame,
-                "TransitionFrame": TransitionFrame,
-                "CriticFrame": CriticFrame,
-                "DatasetFrame": DatasetFrame,
-                "SampleFrame": SampleFrame,
-                "VisualisationFrame": VisualisationFrame
-            }
-            frame = frames[frame_name](parent=self.container, controller=self.window, config=self.config, gui_data=self)
+            frame = self.frames_classes[frame_name](parent=self.container, gui=self)
             frame.grid(row=0, column=0, sticky="nsew")
             self.frames[frame_name] = frame
 
-        # Display the requested frame
+        # Display the requested frame.
         frame = self.frames[frame_name]
         frame.refresh()
         frame.tkraise()
 
-    def home_cmd(self):
-        self.show_frame("HomeFrame")
-
-    def encoder_decoder_cmd(self):
-        self.show_frame("EncoderDecoderFrame")
-
-    def transition_cmd(self):
-        self.show_frame("TransitionFrame")
-
-    def critic_cmd(self):
-        self.show_frame("CriticFrame")
-
-    def dataset_cmd(self):
-        self.show_frame("DatasetFrame")
-
-    def sample_cmd(self):
-        self.show_frame("SampleFrame")
-
-    def visualisation_cmd(self):
-        self.show_frame("VisualisationFrame")
-
     def loop(self):
+        """
+        Launch the main loop of the graphical user interface.
+        :return: nothing.
+        """
         self.window.mainloop()

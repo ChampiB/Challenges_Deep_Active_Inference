@@ -143,7 +143,7 @@ class dSpritesEnv(gym.Env):
             self.last_r = self.compute_square_reward()
         else:
             self.last_r = self.compute_non_square_reward()
-        self.reset_hidden_state()
+        self.y_pos -= 1.0
         return True
 
     def up(self):

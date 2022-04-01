@@ -14,6 +14,9 @@ class LatentSpaceCanvas(tk.Canvas):
         :param gui_data: the gui data to be displayed.
         """
 
+        # Colors
+        self.white = parent.white
+
         # Width and height of the canvas
         self.width = 1820
         self.height = 930
@@ -29,7 +32,7 @@ class LatentSpaceCanvas(tk.Canvas):
         self.pos_y = 0
         self.right_click_on = False
 
-        super().__init__(parent, width=self.width, height=self.height, bg="white")
+        super().__init__(parent, width=self.width, height=self.height, bg=self.white)
         self.parent = parent
         self.gui_data = gui_data
         self.images_data = []
@@ -294,7 +297,7 @@ class LatentSpaceCanvas(tk.Canvas):
         obs = self.gui_data.model.decoder(state) * 255
 
         # Add the state-observation pair to the samples of the GUI
-        self.gui_data.samples.append((obs.detach(), state[0]))
+        self.gui_data.samples.append((obs[0].detach(), state[0]))
 
         # Refresh the GUI
         self.refresh()
