@@ -22,9 +22,9 @@ class CAHMM:
 
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor,
-            n_steps_beta_reset, beta, efe_lr, vfe_lr, beta_starting_step, beta_rate,
-            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
-            discriminator_threshold, **_
+            n_steps_beta_reset, beta, efe_lr, discriminator_lr, vfe_lr,
+            beta_starting_step, beta_rate, queue_capacity, n_steps_between_synchro,
+            tensorboard_dir, g_value, discriminator_threshold, **_
     ):
         """
         Constructor
@@ -37,6 +37,7 @@ class CAHMM:
         :param beta: the initial value for beta
         :param beta_rate: the rate at which the beta parameter is increased
         :param efe_lr: the learning rate of the critic network
+        :param discriminator_lr: the learning rate of the discriminator network
         :param vfe_lr: the learning rate of the other networks
         :param queue_capacity: the maximum capacity of the queue
         :param n_steps_between_synchro: the number of steps between two synchronisations
@@ -68,6 +69,10 @@ class CAHMM:
             list(decoder.parameters()) + \
             list(transition.parameters())
         self.vfe_optimizer = Adam(vfe_params, lr=vfe_lr)
+
+        discriminator_params = \
+            list(encoder.parameters())
+        self.discriminator_optimizer = Adam(discriminator_params, lr=discriminator_lr)
 
         efe_params = \
             list(critic.parameters())
@@ -127,11 +132,13 @@ class CAHMM:
 
         # If some actions do not lead to realistic observations, select one of those actions.
         if not torch.all(are_real):
+            # TODO print("exploratory action {}".format(self.steps_done))
             are_real = torch.logical_not(are_real).to(torch.float64)
             are_real = are_real / are_real.sum()
             return Categorical(torch.squeeze(are_real)).sample()
 
         # Else select the action that maximises the EFE predicted by the critic.
+        # TODO print("exploitatory action {}".format(self.steps_done))
         return self.critic(state).max(1)[1].item()  # Best action.
 
     def train(self, env, config):
@@ -218,11 +225,35 @@ class CAHMM:
         vfe_loss.backward()
         self.vfe_optimizer.step()
 
+        # Compute the loss of the discriminator.
+        discriminator_loss = self.compute_discriminator_loss(obs)
+
+        # Perform one step of gradient descent on the discriminator network.
+        self.discriminator_optimizer.zero_grad()
+        discriminator_loss.backward()
+        self.discriminator_optimizer.step()
+
         # Implement the cyclical scheduling for beta.
         if self.steps_done >= self.beta_starting_step:
             self.beta = np.clip(self.beta + self.beta_rate, 0, 1)
         if self.steps_done % self.n_steps_beta_reset == 0:
             self.beta = 0
+
+    def compute_discriminator_loss(self, obs):
+        """
+        Compute the loss of the discriminator network.
+        :param obs: the observation at time step t.
+        :return: the loss of the discriminator network.
+        """
+        mean, log_var, are_real_obs = self.encoder(obs)
+        fake_obs = self.decoder(mean)
+        _, _, are_real_fake_obs = self.encoder(fake_obs)
+
+        all_are_real = torch.cat([are_real_obs, are_real_fake_obs])
+        all_target = torch.cat([torch.ones_like(are_real_obs), torch.zeros_like(are_real_fake_obs)])
+
+        loss = nn.CrossEntropyLoss()
+        return loss(all_are_real, all_target)
 
     def compute_efe_loss(self, config, obs, actions, next_obs, done, rewards):
         """

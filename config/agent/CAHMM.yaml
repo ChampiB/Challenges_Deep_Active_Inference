@@ -11,6 +11,7 @@ _target_: agents.CAHMM.CAHMM
 # Miscellaneous
 n_states: 10
 vfe_lr: 0.0001
+discriminator_lr: 0.0001
 efe_lr: 0.001
 discount_factor: 0.95
 n_steps_between_synchro: 10
