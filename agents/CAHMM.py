@@ -7,25 +7,24 @@ from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 from torch.distributions.multivariate_normal import MultivariateNormal
 from singletons.Device import Device
-import random
-import math
 from torch.distributions.categorical import Categorical
-from torch import nn, zeros, eye, unsqueeze, softmax
+from torch import nn, zeros, eye, unsqueeze
 from torch.optim import Adam
 import os
 import torch
-from agents.dqn_networks.PolicyNetworks import ConvPolicy  # TODO
 
 
 #
-# Implement a Critical HMM able to evaluate the qualities of each action.
+# Implement a Critical and Adversarial HMM able to evaluate
+# the qualities of each action.
 #
-class CriticalHMM:
+class CAHMM:
 
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor,
             n_steps_beta_reset, beta, efe_lr, vfe_lr, beta_starting_step, beta_rate,
-            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value, **_
+            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
+            discriminator_threshold, **_
     ):
         """
         Constructor
@@ -44,13 +43,12 @@ class CriticalHMM:
             of the target and the critic
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param g_value: the type of value to be used, i.e. "reward" or "efe"
+        :param discriminator_threshold: the threshold at which an image is considered fake by the discriminative network.
         """
 
-        # TODO TMP
-        self.epsilon_start = 0.9  # The initial value of epsilon (for epsilon-greedy).
-        self.epsilon_end = 0.05  # The final value of epsilon (for epsilon-greedy).
-        self.epsilon_decay = 1000  # How slowly should epsilon decay? The bigger, the slower.
+        # TODO tmp
         self.n_actions = 4
+        self.actions = torch.IntTensor([i for i in range(0, self.n_actions)]).to(Device.get())
 
         # Neural networks.
         self.encoder = encoder
@@ -58,7 +56,6 @@ class CriticalHMM:
         self.transition = transition
 
         self.critic = critic
-        # TODO self.critic = ConvPolicy((1, 64, 64), 4)
         self.target = copy.deepcopy(self.critic)
         self.target.eval()
 
@@ -89,6 +86,7 @@ class CriticalHMM:
         self.buffer = ReplayBuffer(capacity=queue_capacity)
         self.steps_done = 0
         self.g_value = g_value
+        self.discriminator_threshold = discriminator_threshold
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
@@ -119,36 +117,22 @@ class CriticalHMM:
 
         # Extract the current state from the current observation.
         obs = torch.unsqueeze(obs, dim=0)
-        state, _ = self.encoder(obs)
+        state, _, _ = self.encoder(obs)
 
-        # Compute the current epsilon value.
-        # TODO epsilon_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-        # TODO     math.exp(-1. * self.steps_done / self.epsilon_decay)
+        # Extract check if some action transition has not been learned yet.
+        next_state, _ = self.transition(state.repeat(self.n_actions, 1), self.actions)
+        next_obs = self.decoder(next_state)
+        _, _, are_real = self.encoder(next_obs)
+        are_real = torch.gt(are_real, self.discriminator_threshold)
 
-        # Sample a number between 0 and 1, and either execute a random action or
-        # the reward maximizing action according to the sampled value.
-        # TODO sample = random.random()
-        # TODO if sample > epsilon_threshold:
-        # TODO     with torch.no_grad():
-        # TODO         return self.critic(state).max(1)[1].item()  # Best action.
-        # TODO else:
-        # TODO     return np.random.choice(self.n_actions)  # Random action.
+        # If some actions do not lead to realistic observations, select one of those actions.
+        if not torch.all(are_real):
+            are_real = torch.logical_not(are_real).to(torch.float64)
+            are_real = are_real / are_real.sum()
+            return Categorical(torch.squeeze(are_real)).sample()
 
+        # Else select the action that maximises the EFE predicted by the critic.
         return self.critic(state).max(1)[1].item()  # Best action.
-
-        # Planning as inference.
-        # TODO actions_prob = softmax(self.critic(state), dim=1)
-
-        # TODO actions_prob = softmax(-self.critic(torch.unsqueeze(obs, dim=0)), dim=1)
-        # TODO if config["enable_tensorboard"]:
-        # TODO     self.writer.add_scalar("acts_prob/down",  actions_prob[0][0], self.steps_done)
-        # TODO     self.writer.add_scalar("acts_prob/up",    actions_prob[0][1], self.steps_done)
-        # TODO     self.writer.add_scalar("acts_prob/left",  actions_prob[0][2], self.steps_done)
-        # TODO     self.writer.add_scalar("acts_prob/right", actions_prob[0][3], self.steps_done)
-        # TODO argmax instead of sampling?
-
-        # Action selection.
-        # TODO return Categorical(actions_prob).sample()
 
     def train(self, env, config):
         """
@@ -253,9 +237,9 @@ class CriticalHMM:
         """
 
         # Compute required vectors.
-        mean_hat_t, log_var_hat_t = self.encoder(obs)
+        mean_hat_t, log_var_hat_t, _ = self.encoder(obs)
         _, log_var = self.transition(mean_hat_t, actions)
-        mean_hat, log_var_hat = self.encoder(next_obs)
+        mean_hat, log_var_hat, _ = self.encoder(next_obs)
 
         # Compute the G-values of each action in the current state.
         critic_pred = self.critic(mean_hat_t)
@@ -294,9 +278,9 @@ class CriticalHMM:
 
         # Compute required vectors.
         # TODO optimize the computation of those vector across efe and vfe computation
-        mean_hat, log_var_hat = self.encoder(obs)
+        mean_hat, log_var_hat, _ = self.encoder(obs)
         states = self.reparameterize(mean_hat, log_var_hat)
-        mean_hat, log_var_hat = self.encoder(next_obs)
+        mean_hat, log_var_hat, _ = self.encoder(next_obs)
         next_state = self.reparameterize(mean_hat, log_var_hat)
         mean, log_var = self.transition(states, actions)
         alpha = self.decoder(next_state)

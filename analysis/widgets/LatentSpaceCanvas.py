@@ -9,7 +9,7 @@ class LatentSpaceCanvas(tk.Canvas):
 
     def __init__(self, parent, gui_data):
         """
-        Construct an clickable image.
+        Construct a canvas displaying the latent space.
         :param parent: the parent of the clickable image.
         :param gui_data: the gui data to be displayed.
         """

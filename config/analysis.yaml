@@ -1,5 +1,6 @@
 gui:
   title: "Model analysis"
+  max_latent_dims: 20
 
 colors:
   red: "#e00000"
@@ -9,8 +10,6 @@ colors:
 
 gallery:
   n_samples_per_page: 10
-
-
 
 defaults:
   - env: dSprites

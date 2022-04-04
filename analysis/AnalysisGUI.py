@@ -25,7 +25,11 @@ class AnalysisGUI:
 
         # Load the GUI attributes from the hydra configuration.
         self.n_samples_per_page = config["gallery"]["n_samples_per_page"]
+        self.max_latent_dims = config["gui"]["max_latent_dims"]
         self.white = config["colors"]["white"]
+        self.red = config["colors"]["red"]
+        self.green = config["colors"]["green"]
+        self.orange = config["colors"]["orange"]
 
         # Create the main window.
         self.window = tk.Tk()

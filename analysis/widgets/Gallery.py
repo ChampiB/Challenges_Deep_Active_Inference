@@ -74,15 +74,21 @@ class Gallery(tk.Frame):
         self.column_id += 1
         return self
 
-    def add_data_column(self, col_name, data_dim):
+    def add_data_column(self, col_name, data_dim, sub_cols_names=None):
         """
         Add a column used to display some numerical data.
         :param col_name: the column name.
         :param data_dim: the dimensionality of the displayed data.
+        :param sub_cols_names: the list of the sub columns' names. The number of elements
+        in the list is equal to data_dim. If sub_cols_names is None, the col_name is used insteed.
         :return: self.
         """
         # Add the column's name.
-        self.__add_column_name(col_name, data_dim)
+        if sub_cols_names is None or len(sub_cols_names) != data_dim:
+            self.__add_column_name(col_name, data_dim)
+        else:
+            for i in range(0, len(sub_cols_names)):
+                self.__add_column_name(sub_cols_names[i], shift=i)
 
         # Initialise the list labels of the new column.
         self.data_labels[col_name] = []
@@ -92,7 +98,7 @@ class Gallery(tk.Frame):
             self.data_labels[col_name].append([])
             for x in range(0, data_dim):
                 label = tk.Label(self, text=self.empty_data)
-                label.grid(row=y+1, column=x+self.column_id, sticky=tk.NSEW, padx=10, pady=10)
+                label.grid(row=y+1, column=x+self.column_id, sticky=tk.NSEW, padx=5, pady=5)
                 self.data_labels[col_name][y].append(label)
 
         # Increase current column index.
@@ -249,13 +255,14 @@ class Gallery(tk.Frame):
             self.curr_index -= self.gui.n_samples_per_page
         self.refresh_callback()
 
-    def __add_column_name(self, col_name, columnspan=1):
+    def __add_column_name(self, col_name, columnspan=1, shift=0):
         """
         Add the column name to the gallery.
         :param col_name: the name of the new column.
         :param columnspan: the width of the column.
+        :param shift: the shift to apply to the current column index.
         :return: nothing.
         """
         label = tk.Label(self, text=col_name)
-        label.grid(row=0, column=self.column_id, columnspan=columnspan, sticky=tk.NSEW)
+        label.grid(row=0, column=self.column_id+shift, columnspan=columnspan, sticky=tk.NSEW)
         self.columns_names.append(label)
