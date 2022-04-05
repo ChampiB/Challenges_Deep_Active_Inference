@@ -39,6 +39,10 @@ class CriticFrame(tk.Frame):
         Refresh the sample displayed in the galery.
         :return: nothing.
         """
+        # Check if the critic model is available.
+        if not hasattr(self.gui.model, 'critic'):
+            return
+
         # Get input images.
         in_imgs = self.gallery.get_current_images()
         if in_imgs is None:
@@ -46,7 +50,7 @@ class CriticFrame(tk.Frame):
             return
 
         # Compute the state representations, the G-values and the probability of each actions.
-        states, _ = self.gui.model.encoder(in_imgs)
+        states = self.gui.model.encoder(in_imgs)[0]
         g_values = self.gui.model.critic(states)
         p_actions = torch.softmax(g_values, dim=1)
 

@@ -6,6 +6,7 @@ from analysis.frames.DatasetFrame import DatasetFrame
 from analysis.frames.SampleFrame import SampleFrame
 from analysis.frames.VisualisationFrame import VisualisationFrame
 from analysis.frames.CriticFrame import CriticFrame
+from analysis.frames.DiscriminatorFrame import DiscriminatorFrame
 from analysis.widgets.NavBar import NavBar
 
 
@@ -57,6 +58,7 @@ class AnalysisGUI:
             "EncoderDecoderFrame": EncoderDecoderFrame,
             "TransitionFrame": TransitionFrame,
             "CriticFrame": CriticFrame,
+            "DiscriminatorFrame": DiscriminatorFrame,
             "DatasetFrame": DatasetFrame,
             "SampleFrame": SampleFrame,
             "VisualisationFrame": VisualisationFrame

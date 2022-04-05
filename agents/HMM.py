@@ -16,9 +16,11 @@ import torch
 #
 class HMM:
 
-    def __init__(self, encoder, decoder, transition, n_steps_beta_reset=10e16, beta=1, lr=0.0001,
-                 beta_starting_step=0, beta_rate=0, queue_capacity=10000,
-                 tensorboard_dir="./data/runs/VAE", **_):
+    def __init__(
+            self, encoder, decoder, transition, n_steps_beta_reset=10e16, beta=1, lr=0.0001,
+            beta_starting_step=0, beta_rate=0, queue_capacity=10000,
+            tensorboard_dir="./data/runs/VAE", **_
+    ):
         """
         Constructor
         :param encoder: the encoder network

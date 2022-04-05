@@ -25,6 +25,7 @@ class NavBar(tk.Menu):
         self.modelbar.add_command(label="Encoder/Decoder", command=self.encoder_decoder_cmd)
         self.modelbar.add_command(label="Transition", command=self.transition_cmd)
         self.modelbar.add_command(label="Critic", command=self.critic_cmd)
+        self.modelbar.add_command(label="Discriminator", command=self.discriminator_cmd)
         self.add_cascade(label="Model", menu=self.modelbar)
 
         # Add the dataset tab to the navigation bar.
@@ -42,6 +43,13 @@ class NavBar(tk.Menu):
         :return: nothing.
         """
         self.gui.show_frame("LoadFrame")
+
+    def discriminator_cmd(self):
+        """
+        Display the page used visualise the discriminator output.
+        :return: nothing.
+        """
+        self.gui.show_frame("DiscriminatorFrame")
 
     def encoder_decoder_cmd(self):
         """

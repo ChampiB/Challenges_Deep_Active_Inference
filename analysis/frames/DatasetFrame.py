@@ -167,7 +167,7 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         images = self.get_images_from_dataset([self.get_index_of_target_image()])
-        states, _ = self.gui.model.encoder(images)
+        states = self.gui.model.encoder(images)[0]
         self.gui.samples.append((images[0], states[0]))
 
     def get_index_of_target_image(self):
@@ -223,7 +223,7 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         images = self.get_images_from_dataset(self.images_to_be_added)
-        states, _ = self.gui.model.encoder(images)
+        states = self.gui.model.encoder(images)[0]
         for i in range(0, len(self.images_to_be_added)):
             self.gui.samples.append((images[i], states[i]))
         self.refresh()

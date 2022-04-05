@@ -44,7 +44,7 @@ class CAHMM:
             of the target and the critic
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param g_value: the type of value to be used, i.e. "reward" or "efe"
-        :param discriminator_threshold: the threshold at which an image is considered fake by the discriminative network.
+        :param discriminator_threshold: the threshold at which an image is considered fake by the discriminator.
         """
 
         # TODO tmp
@@ -97,7 +97,14 @@ class CAHMM:
         self.writer = SummaryWriter(tensorboard_dir)
         self.writer.add_custom_scalars({
             "Actions": {
-                "acts_prob": ["Multiline", ["acts_prob/down", "acts_prob/up", "acts_prob/left", "acts_prob/right"]],
+                "acts_prob": [
+                    "Multiline",
+                    ["acts_prob/down", "acts_prob/up", "acts_prob/left", "acts_prob/right"]
+                ],
+                "discriminator_acts": [
+                    "Multiline",
+                    ["discr_acts/down", "discr_acts/up", "discr_acts/left", "discr_acts/right"]
+                ],
             },
         })
 
@@ -119,26 +126,34 @@ class CAHMM:
         :param config: the hydra configuration
         :return: the random action
         """
-
         # Extract the current state from the current observation.
         obs = torch.unsqueeze(obs, dim=0)
         state, _, _ = self.encoder(obs)
 
-        # Extract check if some action transition has not been learned yet.
+        # Check if some action transition has not been learned yet.
         next_state, _ = self.transition(state.repeat(self.n_actions, 1), self.actions)
-        next_obs = self.decoder(next_state)
+        next_obs = self.decode_images(next_state)
         _, _, are_real = self.encoder(next_obs)
         are_real = torch.gt(are_real, self.discriminator_threshold)
 
+        # Display whether the agent is exploring or exploiting.
+        # Also display the probability that each action leads to a real image
+        # according to the discriminator.
+        if config["enable_tensorboard"]:
+            behavior = 0 if not torch.all(are_real) else 1
+            self.writer.add_scalar("Exploration(0) vs Exploitation(1)", behavior, self.steps_done)
+            self.writer.add_scalar("discr_acts/down",  are_real[0][0], self.steps_done)
+            self.writer.add_scalar("discr_acts/up",    are_real[1][0], self.steps_done)
+            self.writer.add_scalar("discr_acts/left",  are_real[2][0], self.steps_done)
+            self.writer.add_scalar("discr_acts/right", are_real[3][0], self.steps_done)
+
         # If some actions do not lead to realistic observations, select one of those actions.
         if not torch.all(are_real):
-            # TODO print("exploratory action {}".format(self.steps_done))
             are_real = torch.logical_not(are_real).to(torch.float64)
             are_real = are_real / are_real.sum()
             return Categorical(torch.squeeze(are_real)).sample()
 
         # Else select the action that maximises the EFE predicted by the critic.
-        # TODO print("exploitatory action {}".format(self.steps_done))
         return self.critic(state).max(1)[1].item()  # Best action.
 
     def train(self, env, config):
@@ -148,7 +163,6 @@ class CAHMM:
         :param config: the hydra configuration
         :return: nothing
         """
-
         # Retrieve the initial observation from the environment.
         obs = env.reset()
 
@@ -201,7 +215,6 @@ class CAHMM:
         :param config: the hydra configuration
         :return: nothing
         """
-
         # Synchronize the target with the critic (if needed).
         if self.steps_done % self.n_steps_between_synchro == 0:
             self.synchronize_target()
@@ -226,7 +239,7 @@ class CAHMM:
         self.vfe_optimizer.step()
 
         # Compute the loss of the discriminator.
-        discriminator_loss = self.compute_discriminator_loss(obs)
+        discriminator_loss = self.compute_discriminator_loss(config, obs)
 
         # Perform one step of gradient descent on the discriminator network.
         self.discriminator_optimizer.zero_grad()
@@ -239,21 +252,29 @@ class CAHMM:
         if self.steps_done % self.n_steps_beta_reset == 0:
             self.beta = 0
 
-    def compute_discriminator_loss(self, obs):
+    def compute_discriminator_loss(self, config, obs):
         """
         Compute the loss of the discriminator network.
+        :param config: the hydra configuration.
         :param obs: the observation at time step t.
         :return: the loss of the discriminator network.
         """
+        # Compute the fake images.
         mean, log_var, are_real_obs = self.encoder(obs)
-        fake_obs = self.decoder(mean)
+        fake_obs = self.decode_images(mean).detach()
         _, _, are_real_fake_obs = self.encoder(fake_obs)
 
-        all_are_real = torch.cat([are_real_obs, are_real_fake_obs])
-        all_target = torch.cat([torch.ones_like(are_real_obs), torch.zeros_like(are_real_fake_obs)])
+        # Compute the loss function of the discriminator.
+        loss = nn.BCELoss()
+        loss_real = loss(are_real_obs, torch.ones_like(are_real_obs))
+        loss_fake = loss(are_real_fake_obs, torch.zeros_like(are_real_fake_obs))
+        total_loss = loss_real + loss_fake
 
-        loss = nn.CrossEntropyLoss()
-        return loss(all_are_real, all_target)
+        # Display debug information, if needed.
+        if config["enable_tensorboard"] and self.steps_done % 10 == 0:
+            self.writer.add_scalar("Discriminator loss", total_loss, self.steps_done)
+
+        return total_loss
 
     def compute_efe_loss(self, config, obs, actions, next_obs, done, rewards):
         """
@@ -295,7 +316,13 @@ class CAHMM:
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
-        return loss(critic_pred, gval.unsqueeze(1))
+        efe_loss = loss(critic_pred, gval.unsqueeze(1))
+
+        # Display debug information, if needed.
+        if config["enable_tensorboard"] and self.steps_done % 10 == 0:
+            self.writer.add_scalar("EFE loss", efe_loss, self.steps_done)
+
+        return efe_loss
 
     def compute_vfe(self, config, obs, actions, next_obs):
         """
@@ -314,11 +341,11 @@ class CAHMM:
         mean_hat, log_var_hat, _ = self.encoder(next_obs)
         next_state = self.reparameterize(mean_hat, log_var_hat)
         mean, log_var = self.transition(states, actions)
-        alpha = self.decoder(next_state)
+        log_alpha = self.decoder(next_state)
 
         # Compute the variational free energy.
         kl_div_hs = self.kl_div_gaussian(mean, log_var, mean_hat, log_var_hat)
-        log_likelihood = self.log_bernoulli_with_logits(next_obs, alpha)
+        log_likelihood = self.log_bernoulli_with_logits(next_obs, log_alpha)
         vfe_loss = self.beta * kl_div_hs - log_likelihood
 
         # Display debug information, if needed.
@@ -363,28 +390,21 @@ class CAHMM:
         else:
             return 0.5 * kl_div.sum(dim=sum_dims)
 
-    @staticmethod
-    def log_bernoulli(obs, alpha, using_pytorch=False):
+    def decode_images(self, states):
         """
-        Compute the log of probability of the observation assuming a Bernoulli distribution
-        :param obs: the observation
-        :param alpha: the parameter of the Bernoulli distribution over observation
-        :param using_pytorch: should pytorch BCELoss be used?
-        :return: the log probability of the observation
+        Compute the images corresponding to the input states.
+        :param states: the input state that needs to be decoded.
+        :return: the decoded images.
         """
-        if using_pytorch:
-            return -nn.BCELoss(reduction='none')(alpha, obs).mean(dim=0).sum()
-        else:
-            epsilon = 0.0001
-            alpha = torch.clip(alpha, epsilon, 1 - epsilon)
-            out = obs * torch.log(alpha) + (1 - obs) * torch.log(1 - alpha)
-            return out.sum(dim=(1, 2, 3)).mean()
+        image = self.decoder(states).exp()
+        return torch.clamp(image, max=2.718)
 
     @staticmethod
     def log_bernoulli_with_logits(obs, alpha):
         """
-        Compute the log probabilit of the observation (obs), given the logits (alpha), assuming
-        a bernoulli distribution
+        Compute the log probability of the observation (obs), given the logits (alpha), assuming
+        a bernoulli distribution, c.f.
+        https://www.tensorflow.org/api_docs/python/tf/nn/sigmoid_cross_entropy_with_logits
         :param obs: the observation
         :param alpha: the logits
         :return: the log probability of the observation

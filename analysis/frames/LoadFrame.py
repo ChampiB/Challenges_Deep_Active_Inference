@@ -125,6 +125,8 @@ class LoadFrame(tk.Frame):
         # Load the model and store it in the GUI
         with open_dict(self.gui.config):
             self.gui.config.agent.n_states = int(self.selected_n_latent.get())
+        with open_dict(self.gui.config):
+            self.gui.config.agent.n_states = int(self.selected_n_latent.get())
         self.gui.model = instantiate(self.gui.config["agent"])
         self.gui.model.load(self.model_file.name)
 

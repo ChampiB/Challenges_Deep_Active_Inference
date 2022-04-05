@@ -16,8 +16,8 @@ efe_lr: 0.001
 discount_factor: 0.95
 n_steps_between_synchro: 10
 queue_capacity: 50000
-tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CriticalHMM_${env.name}_${seed}"
-g_value: "reward"
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CAHMM_${env.name}_${seed}"
+g_value: "efe"
 discriminator_threshold: 0.9
 
 # Beta scheduling

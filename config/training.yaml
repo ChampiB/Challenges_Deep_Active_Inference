@@ -5,6 +5,7 @@ defaults:
 
 checkpoint:
   directory: "${oc.env:DATA_DIRECTORY}/${env.name}/${agent.name}/${seed}/model.pt"
+  save_directory: "${oc.env:DATA_DIRECTORY}/${env.name}/models/${agent.name}/model.pt" #TODO remove
   frequency: 100
 
 images:

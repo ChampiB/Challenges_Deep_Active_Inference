@@ -38,7 +38,6 @@ class ConvDecoder84(nn.Module):
             nn.ConvTranspose2d(64, 32, (3, 3), stride=(2, 2), padding=(2, 2), output_padding=(1, 1)),
             nn.ReLU(),
             nn.ConvTranspose2d(32, image_shape[0], (3, 3), stride=(1, 1), padding=(3, 3), output_padding=(0, 0)),
-            nn.Sigmoid()
         )
 
     def build(self, conv_output_shape):

@@ -51,7 +51,7 @@ class SampleFrame(tk.Frame):
             return
 
         # Compute the state representations.
-        states, _ = self.gui.model.encoder(in_imgs)
+        states = self.gui.model.encoder(in_imgs)[0]
 
         # Update the gallery.
         self.gallery.refresh({

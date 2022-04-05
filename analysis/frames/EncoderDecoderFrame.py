@@ -39,7 +39,7 @@ class EncoderDecoderFrame(tk.Frame):
             return
 
         # Compute the state representations and output images
-        states, _ = self.gui.model.encoder(in_imgs)
+        states = self.gui.model.encoder(in_imgs)[0]
         out_imgs = self.gui.model.decoder(states)
 
         # Update the gallery.

@@ -49,6 +49,10 @@ class TransitionFrame(tk.Frame):
         Refresh the sample displayed in the galery.
         :return: nothing.
         """
+        # Check if the transition model is available.
+        if not hasattr(self.gui.model, 'transition'):
+            return
+
         # Get input images.
         in_imgs = self.gallery.get_current_images()
         if in_imgs is None:
@@ -56,7 +60,7 @@ class TransitionFrame(tk.Frame):
             return
 
         # Compute the input and output state representations as well as the output images
-        in_states, _ = self.gui.model.encoder(in_imgs)
+        in_states = self.gui.model.encoder(in_imgs)[0]
         actions = torch.ones([in_imgs.shape[0]]) * self.action_cb['values'].index(self.action_cb.get())
         out_states, _ = self.gui.model.transition(in_states, actions)
         out_imgs = self.gui.model.decoder(out_states)
