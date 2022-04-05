@@ -397,7 +397,9 @@ class CAHMM:
         :return: the decoded images.
         """
         image = self.decoder(states).exp()
-        return torch.clamp(image, max=2.718)
+        epsilon = 0.0001
+        return torch.clamp(image, min=epsilon, max=1 - epsilon)
+
 
     @staticmethod
     def log_bernoulli_with_logits(obs, alpha):
