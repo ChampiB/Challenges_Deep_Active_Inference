@@ -120,7 +120,7 @@ class DQN:
 
             # Save the agent if needed.
             if self.steps_done % config["checkpoint"]["frequency"] == 0:
-                self.save(config["checkpoint"]["directory"])
+                self.save(config["checkpoint"]["file"])
 
             # Render the environment if needed.
             if config["enable_tensorboard"]:

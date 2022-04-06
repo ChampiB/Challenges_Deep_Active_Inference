@@ -124,5 +124,5 @@ class PMCTS:
         if self.__root is None:
             raise Exception("The function reset must be called before calling select_action.")
 
-        # Select the an action according to the planning procedure
+        # Select an action according to the planning procedure
         return Categorical(self.prior_over_actions()).sample()

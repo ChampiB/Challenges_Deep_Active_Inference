@@ -5,3 +5,5 @@ pillow~=9.0.1
 numpy~=1.21.3
 future~=0.18.2
 omegaconf~=2.1.1
+ttkthemes
+hydra

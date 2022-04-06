@@ -8,6 +8,7 @@ from hydra.utils import instantiate
 import numpy as np
 import random
 import torch
+from agents.save.Checkpoint import Checkpoint
 
 
 @hydra.main(config_path="config", config_name="training")
@@ -27,8 +28,8 @@ def train(config):
     env = DefaultWrappers.apply(env, config["images"]["shape"])
 
     # Create the agent and train it.
-    agent = instantiate(config["agent"])
-    agent.load(config["checkpoint"]["directory"])
+    archive = Checkpoint(config["checkpoint"]["file"])
+    agent = archive.load_model() if archive.exists() else instantiate(config["agent"])
 
     # Retrieve the initial observation from the environment.
     obs = env.reset()
@@ -70,7 +71,7 @@ def train(config):
 
         # Save the agent (if needed).
         if agent.steps_done % config["checkpoint"]["frequency"] == 0:
-            agent.save(config["checkpoint"]["directory"])
+            agent.save(config["checkpoint"]["file"])
 
         # Increase the number of steps done.
         agent.steps_done += 1

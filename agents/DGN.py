@@ -17,8 +17,10 @@ from agents.dgn_networks.PolicyNetworks import PolicyNetwork as Policy
 from agents.dgn_networks.CriticNetworks import LinearRelu as Critic
 from agents.planning.PMCTS import PMCTS
 from agents.planning.NodePMCTS import NodePMCTS as Node
-from tmp.tmp2.debug.Images import Images  # TODO
 from singletons.Device import Device
+
+# TODO refacto this file
+
 
 
 #
@@ -130,7 +132,6 @@ class DGN:
 
         # Generate a typical trajectory and render the environment (if needed).
         if self.hp["debug_mode"]:
-            Images.images_to_gif("./data/trajectory.gif", self.imagine_trajectory(obs, actions=[2, 2, 2, 2, 2]))
             env.render()
 
         # Train the agent.

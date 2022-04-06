@@ -7,6 +7,7 @@ from omegaconf import OmegaConf, open_dict
 from hydra.utils import instantiate
 
 
+# TODO add this to the GUI
 @hydra.main(config_path="config", config_name="training")
 def display_images(config):
     # Create the logger and keep track of the configuration.
@@ -22,7 +23,7 @@ def display_images(config):
     # Load the agent from the checkpoint.
     Logger.get().info("Load the agent...\n")
     agent = instantiate(config["agent"])
-    agent.load(config["checkpoint"]["directory"])
+    agent.load(config["checkpoint"]["file"])
 
     # Collect the initial image from the environment and infer the associated state.
     obs = env.reset()

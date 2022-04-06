@@ -1,16 +1,15 @@
 from torch.utils.tensorboard import SummaryWriter
+from agents.save.Checkpoint import Checkpoint
 import numpy as np
 import copy
-from pathlib import Path
 from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
-from torch.distributions.multivariate_normal import MultivariateNormal
 from singletons.Device import Device
 from torch.distributions.categorical import Categorical
-from torch import nn, zeros, eye, unsqueeze
+from torch import nn, unsqueeze
 from torch.optim import Adam
-import os
+import agents.math.functions as mathfc
 import torch
 
 
@@ -24,7 +23,8 @@ class CAHMM:
             self, encoder, decoder, transition, critic, discount_factor,
             n_steps_beta_reset, beta, efe_lr, discriminator_lr, vfe_lr,
             beta_starting_step, beta_rate, queue_capacity, n_steps_between_synchro,
-            tensorboard_dir, g_value, discriminator_threshold, **_
+            tensorboard_dir, g_value, discriminator_threshold, n_actions,
+            steps_done=0, **_
     ):
         """
         Constructor
@@ -40,43 +40,37 @@ class CAHMM:
         :param discriminator_lr: the learning rate of the discriminator network
         :param vfe_lr: the learning rate of the other networks
         :param queue_capacity: the maximum capacity of the queue
+        :param n_actions: the number of actions available in the environment
         :param n_steps_between_synchro: the number of steps between two synchronisations
             of the target and the critic
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param g_value: the type of value to be used, i.e. "reward" or "efe"
         :param discriminator_threshold: the threshold at which an image is considered fake by the discriminator.
+        :param steps_done: the number of training iterations performed to date.
         """
 
-        # TODO tmp
-        self.n_actions = 4
-        self.actions = torch.IntTensor([i for i in range(0, self.n_actions)]).to(Device.get())
-
-        # Neural networks.
+        # Initialize the neural networks of the model.
         self.encoder = encoder
         self.decoder = decoder
         self.transition = transition
-
         self.critic = critic
-        self.target = copy.deepcopy(self.critic)
-        self.target.eval()
+        self.target = None
+        self.synchronize_target()
 
-        # Ensure models are on the right device.
+        # Ensure the neural networks are on the right device.
         self.to_device()
 
-        # Optimizers.
-        vfe_params = \
-            list(encoder.parameters()) + \
-            list(decoder.parameters()) + \
-            list(transition.parameters())
-        self.vfe_optimizer = Adam(vfe_params, lr=vfe_lr)
+        # Store learning rates.
+        self.vfe_lr = vfe_lr
+        self.discriminator_lr = discriminator_lr
+        self.efe_lr = efe_lr
 
-        discriminator_params = \
-            list(encoder.parameters())
-        self.discriminator_optimizer = Adam(discriminator_params, lr=discriminator_lr)
-
-        efe_params = \
-            list(critic.parameters())
-        self.efe_optimizer = Adam(efe_params, lr=efe_lr)
+        # Initialize the optimizers.
+        self.vfe_optimizer, self.discriminator_optimizer, self.efe_optimizer = \
+            self.get_optimizers(
+                self.encoder, self.decoder, self.transition, self.critic,
+                self.vfe_lr, self.discriminator_lr, self.efe_lr
+            )
 
         # Beta scheduling.
         self.n_steps_beta_reset = n_steps_beta_reset
@@ -84,14 +78,20 @@ class CAHMM:
         self.beta = beta
         self.beta_rate = beta_rate
 
-        # Miscellaneous.
+        # Store the other attributes.
         self.total_rewards = 0.0
         self.n_steps_between_synchro = n_steps_between_synchro
         self.discount_factor = discount_factor
+        self.queue_capacity = queue_capacity
         self.buffer = ReplayBuffer(capacity=queue_capacity)
-        self.steps_done = 0
+        self.steps_done = steps_done
         self.g_value = g_value
         self.discriminator_threshold = discriminator_threshold
+        self.tensorboard_dir = tensorboard_dir
+
+        # Store the number of actions and the one-hot encoding of the actions.
+        self.n_actions = n_actions
+        self.actions = torch.IntTensor([i for i in range(0, self.n_actions)]).to(Device.get())
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
@@ -107,6 +107,38 @@ class CAHMM:
                 ],
             },
         })
+
+    @staticmethod
+    def get_optimizers(encoder, decoder, transition, critic, vfe_lr, discriminator_lr, efe_lr):
+        """
+        Build the optimizers used to train the neural networks of the model.
+        :param encoder: the encoder network.
+        :param decoder: the decoder network.
+        :param transition: the transition network.
+        :param critic: the critic network.
+        :param vfe_lr: the learning rate of the Variational Free Energy optimizer.
+        :param discriminator_lr: the learning rate of the discriminator loss optimizer.
+        :param efe_lr: the learning rate of the Expected Free Energy loss optimizer.
+        :return: the optimizers of the VFE, discriminator loss and EFE loss.
+        """
+        # Create the Variational Free Energy optimizer.
+        vfe_params = \
+            list(encoder.parameters()) + \
+            list(decoder.parameters()) + \
+            list(transition.parameters())
+        vfe_optimizer = Adam(vfe_params, lr=vfe_lr)
+
+        # Create the discriminator loss optimizer.
+        discriminator_params = \
+            list(encoder.parameters())
+        discriminator_optimizer = Adam(discriminator_params, lr=discriminator_lr)
+
+        # Create the Expected Free Energy loss optimizer.
+        efe_params = \
+            list(critic.parameters())
+        efe_optimizer = Adam(efe_params, lr=efe_lr)
+
+        return vfe_optimizer, discriminator_optimizer, efe_optimizer
 
     def to_device(self):
         """
@@ -190,7 +222,7 @@ class CAHMM:
 
             # Save the agent (if needed).
             if self.steps_done % config["checkpoint"]["frequency"] == 0:
-                self.save(config["checkpoint"]["directory"])
+                self.save(config)
 
             # Render the environment and monitor total rewards (if needed).
             if config["enable_tensorboard"]:
@@ -308,7 +340,7 @@ class CAHMM:
 
         # Add information gain to the immediate g-value (if needed).
         if self.g_value == "efe":
-            immediate_gval += self.entropy_gaussian(log_var_hat) - self.entropy_gaussian(log_var)
+            immediate_gval += mathfc.entropy_gaussian(log_var_hat) - mathfc.entropy_gaussian(log_var)
             immediate_gval = immediate_gval.to(torch.float32)
 
         # Compute the discounted G values.
@@ -337,15 +369,15 @@ class CAHMM:
         # Compute required vectors.
         # TODO optimize the computation of those vector across efe and vfe computation
         mean_hat, log_var_hat, _ = self.encoder(obs)
-        states = self.reparameterize(mean_hat, log_var_hat)
+        states = mathfc.reparameterize(mean_hat, log_var_hat)
         mean_hat, log_var_hat, _ = self.encoder(next_obs)
-        next_state = self.reparameterize(mean_hat, log_var_hat)
+        next_state = mathfc.reparameterize(mean_hat, log_var_hat)
         mean, log_var = self.transition(states, actions)
         log_alpha = self.decoder(next_state)
 
         # Compute the variational free energy.
-        kl_div_hs = self.kl_div_gaussian(mean, log_var, mean_hat, log_var_hat)
-        log_likelihood = self.log_bernoulli_with_logits(next_obs, log_alpha)
+        kl_div_hs = mathfc.kl_div_gaussian(mean, log_var, mean_hat, log_var_hat)
+        log_likelihood = mathfc.log_bernoulli_with_logits(next_obs, log_alpha)
         vfe_loss = self.beta * kl_div_hs - log_likelihood
 
         # Display debug information, if needed.
@@ -357,39 +389,6 @@ class CAHMM:
 
         return vfe_loss
 
-    @staticmethod
-    def entropy_gaussian(log_var, sum_dims=None):
-        """
-        Compute the entropy of a Gaussian distribution.
-        :param log_var: the logarithm of the variance parameter.
-        :param sum_dims: the dimensions along which to sum over before to return, by default only dimension one.
-        :return: the entropy of a Gaussian distribution.
-        """
-        ln2pie = 1.23247435026
-        sum_dims = [1] if sum_dims is None else sum_dims
-        return log_var.size()[1] * 0.5 * ln2pie + 0.5 * log_var.sum(sum_dims)
-
-    @staticmethod
-    def kl_div_gaussian(mean, log_var, mean_hat, log_var_hat, sum_dims=None):
-        """
-        Compute the KL-divergence between two Gaussian distributions
-        :param mean: the mean of the first Gaussian distribution
-        :param log_var: the log of variance of the first Gaussian distribution
-        :param mean_hat: the mean of the second Gaussian distribution
-        :param log_var_hat: the log of variance of the second Gaussian distribution
-        :param sum_dims: the dimensions along which to sum over before to return, by default all of them
-        :return: the KL-divergence between the two Gaussian distributions
-        """
-        var = log_var.exp()
-        var_hat = log_var_hat.exp()
-        kl_div = log_var - log_var_hat + (mean_hat - mean) ** 2 / var
-        kl_div += var_hat / var
-
-        if sum_dims is None:
-            return 0.5 * kl_div.sum(dim=1).mean()
-        else:
-            return 0.5 * kl_div.sum(dim=sum_dims)
-
     def decode_images(self, states):
         """
         Compute the images corresponding to the input states.
@@ -400,34 +399,6 @@ class CAHMM:
         epsilon = 0.0001
         return torch.clamp(image, min=epsilon, max=1 - epsilon)
 
-
-    @staticmethod
-    def log_bernoulli_with_logits(obs, alpha):
-        """
-        Compute the log probability of the observation (obs), given the logits (alpha), assuming
-        a bernoulli distribution, c.f.
-        https://www.tensorflow.org/api_docs/python/tf/nn/sigmoid_cross_entropy_with_logits
-        :param obs: the observation
-        :param alpha: the logits
-        :return: the log probability of the observation
-        """
-        out = torch.exp(alpha)
-        one = torch.ones_like(out)
-        out = alpha * obs - torch.log(one + out)
-        return out.sum(dim=(1, 2, 3)).mean()
-
-    @staticmethod
-    def reparameterize(mean, log_var):
-        """
-        Perform the reparameterization trick
-        :param mean: the mean of the Gaussian
-        :param log_var: the log of the variance of the Gaussian
-        :return: a sample from the Gaussian on which back-propagation can be performed
-        """
-        nb_states = mean.shape[1]
-        epsilon = MultivariateNormal(zeros(nb_states), eye(nb_states)).sample([mean.shape[0]]).to(Device.get())
-        return epsilon * (0.5 * log_var).exp() + mean
-
     def synchronize_target(self):
         """
         Synchronize the target with the critic.
@@ -436,74 +407,78 @@ class CAHMM:
         self.target = copy.deepcopy(self.critic)
         self.target.eval()
 
-    def save(self, checkpoint_directory):
+    def save(self, config):
         """
-        Create a checkpoint file allowing the agent to be reloaded later
-        :param checkpoint_directory: the directory in which to save the model
-        :return: nothing
+        Create a checkpoint file allowing the agent to be reloaded later.
+        :param config: the hydra configuration.
+        :return: nothing.
         """
 
         # Create directories and files if they do not exist.
-        if not os.path.exists(os.path.dirname(checkpoint_directory)):
-            os.makedirs(os.path.dirname(checkpoint_directory))
-            file = Path(checkpoint_directory)
-            file.touch(exist_ok=True)
+        checkpoint_file = config["checkpoint"]["file"]
+        Checkpoint.create_dir_and_file(checkpoint_file)
 
         # Save the model.
         torch.save({
+            "agent_module": str(self.__module__),
+            "agent_class": str(self.__class__.__name__),
+            "images_shape": config["images"]["shape"],
+            "n_states": config["agent"]["n_states"],
+            "n_actions": config["env"]["n_actions"],
             "decoder_net_state_dict": self.decoder.state_dict(),
+            "decoder_net_module": str(self.decoder.__module__),
+            "decoder_net_class": str(self.decoder.__class__.__name__),
             "encoder_net_state_dict": self.encoder.state_dict(),
+            "encoder_net_module": str(self.encoder.__module__),
+            "encoder_net_class": str(self.encoder.__class__.__name__),
             "transition_net_state_dict": self.transition.state_dict(),
+            "transition_net_module": str(self.transition.__module__),
+            "transition_net_class": str(self.transition.__class__.__name__),
             "critic_net_state_dict": self.critic.state_dict(),
+            "critic_net_module": str(self.critic.__module__),
+            "critic_net_class": str(self.critic.__class__.__name__),
+            "vfe_lr": self.vfe_lr,
+            "discriminator_lr": self.discriminator_lr,
+            "efe_lr": self.efe_lr,
+            "beta": self.beta,
             "n_steps_beta_reset": self.n_steps_beta_reset,
             "beta_starting_step": self.beta_starting_step,
-            "beta": self.beta,
             "beta_rate": self.beta_rate,
-            "n_steps_done": self.steps_done,
-        }, checkpoint_directory)
+            "steps_done": self.steps_done,
+            "discount_factor": self.discount_factor,
+            "queue_capacity": self.queue_capacity,
+            "n_steps_between_synchro": self.n_steps_between_synchro,
+            "tensorboard_dir": self.tensorboard_dir,
+            "g_value": self.g_value,
+            "discriminator_threshold": self.discriminator_threshold,
+        }, checkpoint_file)
 
-    def load(self, checkpoint_directory, training_mode=True):
+    @staticmethod
+    def load_constructor_parameters(checkpoint, training_mode=True):
         """
-        Load the agent from a previously created checkpoint
-        :param checkpoint_directory: the directory containing the model
-        :param training_mode: should the agent be loaded for training?
-        :return: nothing
+        Load the constructor parameters from a checkpoint.
+        :param checkpoint: the chechpoint from which to load the parameters.
+        :param training_mode: True if the agent is being loaded for training, False otherwise.
+        :return: a dictionary containing the contrutor's parameters.
         """
-
-        # If the path is not a file, return without trying to load the model.
-        if not os.path.isfile(checkpoint_directory):
-            Logger.get().warn("Could not load model from: " + checkpoint_directory)
-            return
-
-        # Load checkpoint from path.
-        checkpoint = torch.load(checkpoint_directory, map_location=Device.get())
-
-        # Load networks' weights.
-        self.decoder.load_state_dict(checkpoint["decoder_net_state_dict"])
-        self.encoder.load_state_dict(checkpoint["encoder_net_state_dict"])
-        self.transition.load_state_dict(checkpoint["transition_net_state_dict"])
-        self.critic.load_state_dict(checkpoint["critic_net_state_dict"])
-
-        # Set the mode requested be the user, i.e. training or testing mode.
-        if training_mode:
-            self.decoder.train()
-            self.encoder.train()
-            self.transition.train()
-            self.critic.train()
-        else:
-            self.decoder.eval()
-            self.encoder.eval()
-            self.transition.eval()
-            self.critic.eval()
-
-        # Ensure models are on the right device.
-        self.to_device()
-
-        # Load parameters of beta scheduling.
-        self.beta = checkpoint["beta"]
-        self.n_steps_beta_reset = checkpoint["n_steps_beta_reset"]
-        self.beta_starting_step = checkpoint["beta_starting_step"]
-        self.beta_rate = checkpoint["beta_rate"]
-
-        # Load number of training steps performed to date.
-        self.steps_done = checkpoint["n_steps_done"]
+        return {
+            "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
+            "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
+            "transition": Checkpoint.load_transition(checkpoint, training_mode),
+            "critic": Checkpoint.load_critic(checkpoint, training_mode),
+            "vfe_lr": checkpoint["vfe_lr"],
+            "discriminator_lr": checkpoint["discriminator_lr"],
+            "efe_lr": checkpoint["efe_lr"],
+            "beta": checkpoint["beta"],
+            "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
+            "beta_starting_step": checkpoint["beta_starting_step"],
+            "beta_rate": checkpoint["beta_rate"],
+            "steps_done": checkpoint["steps_done"],
+            "discount_factor": checkpoint["discount_factor"],
+            "queue_capacity": checkpoint["queue_capacity"],
+            "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
+            "tensorboard_dir": checkpoint["tensorboard_dir"],
+            "g_value": checkpoint["g_value"],
+            "discriminator_threshold": checkpoint["discriminator_threshold"],
+            "n_actions": checkpoint["n_actions"]
+        }

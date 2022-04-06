@@ -10,6 +10,7 @@ _target_: agents.CAHMM.CAHMM
 
 # Miscellaneous
 n_states: 10
+n_actions: ${env.n_actions}
 vfe_lr: 0.0001
 discriminator_lr: 0.0001
 efe_lr: 0.001

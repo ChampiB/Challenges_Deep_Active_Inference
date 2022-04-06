@@ -1,4 +1,6 @@
 import tkinter as tk
+from tkinter import messagebox
+import torch
 
 
 #
@@ -20,22 +22,78 @@ class NavBar(tk.Menu):
         # Add the load tab to the navigation bar.
         self.add_command(label="Load", command=self.load_cmd)
 
-        # Add the model tab to the navigation bar.
+        # Add the model tab to the navigation bar, if needed.
         self.modelbar = tk.Menu(self, tearoff=0)
-        self.modelbar.add_command(label="Encoder/Decoder", command=self.encoder_decoder_cmd)
-        self.modelbar.add_command(label="Transition", command=self.transition_cmd)
-        self.modelbar.add_command(label="Critic", command=self.critic_cmd)
-        self.modelbar.add_command(label="Discriminator", command=self.discriminator_cmd)
-        self.add_cascade(label="Model", menu=self.modelbar)
+        if self.gui.model is None:
+            self.add_command(label="Model", command=self.no_model_cmd)
+        else:
+            self.add_model_cascade()
 
         # Add the dataset tab to the navigation bar.
-        self.add_command(label="Dataset", command=self.dataset_cmd)
+        if self.gui.dataset is None:
+            self.add_command(label="Dataset", command=self.no_dataset_cmd)
+        else:
+            self.add_command(label="Dataset", command=self.dataset_cmd)
 
         # Add the sample tab to the navigation bar.
-        self.add_command(label="Sample", command=self.sample_cmd)
+        if len(self.gui.samples) == 0:
+            self.add_command(label="Sample", command=self.no_sample_cmd)
+        else:
+            self.add_command(label="Sample", command=self.sample_cmd)
 
         # Add the visualisation tab to the navigation bar.
-        self.add_command(label="Visualisation", command=self.visualisation_cmd)
+        if self.gui.model is None:
+            self.add_command(label="Visualisation", command=self.no_model_cmd)
+        else:
+            self.add_command(label="Visualisation", command=self.visualisation_cmd)
+
+    def add_model_cascade(self):
+        """
+        Add the model cascade to the nagivation bar.
+        :return: nothing.
+        """
+        if self.model_has_attr(['encoder', 'decoder']):
+            self.modelbar.add_command(label="Encoder/Decoder", command=self.encoder_decoder_cmd)
+        if self.model_has_attr(['encoder', 'decoder', 'transition']):
+            self.modelbar.add_command(label="Transition", command=self.transition_cmd)
+        if self.model_has_attr(['encoder', 'critic']):
+            self.modelbar.add_command(label="Critic", command=self.critic_cmd)
+        if self.model_has_attr(['encoder', 'decoder', 'transition', 'discriminator']):
+            self.modelbar.add_command(label="Discriminator", command=self.discriminator_cmd)
+        self.add_cascade(label="Model", menu=self.modelbar)
+
+    def model_has_attr(self, attrs):
+        """
+        Check if the gui's model has the requested attributes.
+        :param attrs: the attributes to check.
+        :return: True if the gui's model has the requested attributes, False otherwise.
+        """
+
+        # Check that the model has been loaded.
+        if self.gui.model is None:
+            return False
+
+        # Check whether the model has the requested attributes.
+        for attr in attrs:
+            if attr == 'discriminator':
+                if not self.model_has_discriminator():
+                    return False
+            elif not hasattr(self.gui.model, attr):
+                return False
+        return True
+
+    def model_has_discriminator(self):
+        """
+        Check if the gui's model has a discriminator.
+        :return: True if the gui's model has a discriminator, False otherwise.
+        """
+        if hasattr(self.gui.model, 'discriminator'):
+            return True
+        if not hasattr(self.gui.model, 'encoder'):
+            return False
+        img = torch.zeros(self.gui.config["images"]["shape"])
+        img = torch.unsqueeze(img, dim=0)
+        return len(self.gui.model.encoder(img)) >= 3
 
     def load_cmd(self):
         """
@@ -43,6 +101,33 @@ class NavBar(tk.Menu):
         :return: nothing.
         """
         self.gui.show_frame("LoadFrame")
+
+    @staticmethod
+    def no_model_cmd():
+        """
+        Display a popup explaining to the user to load a model.
+        :return: nothing.
+        """
+        error_msg = "You must provide a model before to click on this tab."
+        messagebox.showerror("Error", error_msg)
+
+    @staticmethod
+    def no_dataset_cmd():
+        """
+        Display a popup explaining to the user to load a dataset.
+        :return: nothing.
+        """
+        error_msg = "You must provide a dataset before to click on this tab."
+        messagebox.showerror("Error", error_msg)
+
+    @staticmethod
+    def no_sample_cmd():
+        """
+        Display a popup explaining to the user to add images to the sample.
+        :return: nothing.
+        """
+        error_msg = "You must add images to the sample before to click on this tab."
+        messagebox.showerror("Error", error_msg)
 
     def discriminator_cmd(self):
         """

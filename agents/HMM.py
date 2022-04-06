@@ -1,13 +1,11 @@
+from agents.save.Checkpoint import Checkpoint
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
-from pathlib import Path
 from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
-from torch.distributions.multivariate_normal import MultivariateNormal
-from torch import nn, zeros, eye
+import agents.math.functions as mathfc
 from torch.optim import Adam
-import os
 import torch
 
 
@@ -17,9 +15,9 @@ import torch
 class HMM:
 
     def __init__(
-            self, encoder, decoder, transition, n_steps_beta_reset=10e16, beta=1, lr=0.0001,
-            beta_starting_step=0, beta_rate=0, queue_capacity=10000,
-            tensorboard_dir="./data/runs/VAE", **_
+            self, encoder, decoder, transition, n_steps_beta_reset, beta, lr,
+            beta_starting_step, beta_rate, queue_capacity,
+            tensorboard_dir, steps_done=0, **_
     ):
         """
         Constructor
@@ -33,6 +31,7 @@ class HMM:
         :param lr: the learning rate
         :param queue_capacity: the maximum capacity of the queue
         :param tensorboard_dir: the directory in which tensorboard's files will be written
+        :param steps_done: the number of training iterations performed to date.
         """
 
         # Neural networks.
@@ -55,8 +54,11 @@ class HMM:
 
         # Miscellaneous.
         self.buffer = ReplayBuffer(capacity=queue_capacity)
-        self.steps_done = 0
+        self.steps_done = steps_done
         self.writer = SummaryWriter(tensorboard_dir)
+        self.lr = lr
+        self.queue_capacity = queue_capacity
+        self.tensorboard_dir = tensorboard_dir
 
     @staticmethod
     def step(_, config):
@@ -103,7 +105,7 @@ class HMM:
 
             # Save the agent (if needed).
             if self.steps_done % config["checkpoint"]["frequency"] == 0:
-                self.save(config["checkpoint"]["directory"])
+                self.save(config)
 
             # Render the environment.
             if config["display_gui"]:
@@ -155,15 +157,15 @@ class HMM:
 
         # Compute required vectors.
         mean_hat, log_var_hat = self.encoder(obs)
-        states = self.reparameterize(mean_hat, log_var_hat)
+        states = mathfc.reparameterize(mean_hat, log_var_hat)
         mean_hat, log_var_hat = self.encoder(next_obs)
-        next_state = self.reparameterize(mean_hat, log_var_hat)
+        next_state = mathfc.reparameterize(mean_hat, log_var_hat)
         mean, log_var = self.transition(states, actions)
         alpha = self.decoder(next_state)
 
         # Compute the variational free energy.
-        kl_div_hs = self.kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
-        log_likelihood = self.log_bernoulli_with_logits(next_obs, alpha)
+        kl_div_hs = mathfc.kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
+        log_likelihood = mathfc.log_bernoulli_with_logits(next_obs, alpha)
         vfe_loss = self.beta * kl_div_hs - log_likelihood
 
         # Display debug information, if needed.
@@ -175,131 +177,60 @@ class HMM:
 
         return vfe_loss
 
-    @staticmethod
-    def kl_div_gaussian(mean_hat, log_var_hat, mean, log_var, sum_dims=None):
+    def save(self, config):
         """
-        Compute the KL-divergence between two Gaussian distributions
-        :param mean_hat: the mean of the second Gaussian distribution
-        :param log_var_hat: the log of variance of the second Gaussian distribution
-        :param mean: the mean of the first Gaussian distribution
-        :param log_var: the log of variance of the first Gaussian distribution
-        :param sum_dims: the dimensions along which to sum over before to return, by default all of them
-        :return: the KL-divergence between the two Gaussian distributions
+        Create a checkpoint file allowing the agent to be reloaded later.
+        :param config: the hydra configuration.
+        :return: nothing.
         """
-        var = log_var.exp()
-        var_hat = log_var_hat.exp()
-        kl_div = log_var - log_var_hat + (mean_hat - mean) ** 2 / var
-        kl_div += var_hat / var
-
-        if sum_dims is None:
-            return 0.5 * kl_div.sum(dim=1).mean()
-        else:
-            return 0.5 * kl_div.sum(dim=sum_dims)
-
-    @staticmethod
-    def log_bernoulli(obs, alpha, using_pytorch=False):
-        """
-        Compute the log of probability of the observation assuming a Bernoulli distribution
-        :param obs: the observation
-        :param alpha: the parameter of the Bernoulli distribution over observation
-        :param using_pytorch: should pytorch BCELoss be used?
-        :return: the log probability of the observation
-        """
-        if using_pytorch:
-            return -nn.BCELoss(reduction='none')(alpha, obs).mean(dim=0).sum()
-        else:
-            epsilon = 0.0001
-            alpha = torch.clip(alpha, epsilon, 1 - epsilon)
-            out = obs * torch.log(alpha) + (1 - obs) * torch.log(1 - alpha)
-            return out.sum(dim=(1, 2, 3)).mean()
-
-    @staticmethod
-    def log_bernoulli_with_logits(obs, alpha):
-        """
-        Compute the log probabilit of the observation (obs), given the logits (alpha), assuming
-        a bernoulli distribution
-        :param obs: the observation
-        :param alpha: the logits
-        :return: the log probability of the observation
-        """
-        out = torch.exp(alpha)
-        one = torch.ones_like(out)
-        out = alpha * obs - torch.log(one + out)
-        return out.sum(dim=(1, 2, 3)).mean()
-
-    @staticmethod
-    def reparameterize(mean, log_var):
-        """
-        Perform the reparameterization trick
-        :param mean: the mean of the Gaussian
-        :param log_var: the log of the variance of the Gaussian
-        :return: a sample from the Gaussian on which back-propagation can be performed
-        """
-        nb_states = mean.shape[1]
-        epsilon = MultivariateNormal(zeros(nb_states), eye(nb_states)).sample([mean.shape[0]])
-        return epsilon * (0.5 * log_var).exp() + mean
-
-    def save(self, checkpoint_directory):
-        """
-        Create a checkpoint file allowing the agent to be reloaded later
-        :param checkpoint_directory: the directory in which to save the model
-        :return: nothing
-        """
-
         # Create directories and files if they do not exist.
-        if not os.path.exists(os.path.dirname(checkpoint_directory)):
-            os.makedirs(os.path.dirname(checkpoint_directory))
-            file = Path(checkpoint_directory)
-            file.touch(exist_ok=True)
+        checkpoint_file = config["checkpoint"]["file"]
+        Checkpoint.create_dir_and_file(checkpoint_file)
 
         # Save the model.
         torch.save({
+            "agent_module": str(self.__module__),
+            "agent_class": str(self.__class__.__name__),
+            "images_shape": config["images"]["shape"],
+            "n_states": config["agent"]["n_states"],
+            "n_actions": config["env"]["n_actions"],
             "decoder_net_state_dict": self.decoder.state_dict(),
+            "decoder_net_module": str(self.decoder.__module__),
+            "decoder_net_class": str(self.decoder.__class__.__name__),
             "encoder_net_state_dict": self.encoder.state_dict(),
+            "encoder_net_module": str(self.encoder.__module__),
+            "encoder_net_class": str(self.encoder.__class__.__name__),
             "transition_net_state_dict": self.transition.state_dict(),
+            "transition_net_module": str(self.transition.__module__),
+            "transition_net_class": str(self.transition.__class__.__name__),
+            "lr": self.lr,
+            "beta": self.beta,
             "n_steps_beta_reset": self.n_steps_beta_reset,
             "beta_starting_step": self.beta_starting_step,
-            "beta": self.beta,
             "beta_rate": self.beta_rate,
-            "n_steps_done": self.steps_done,
-        }, checkpoint_directory)
+            "steps_done": self.steps_done,
+            "queue_capacity": self.queue_capacity,
+            "tensorboard_dir": self.tensorboard_dir,
+        }, checkpoint_file)
 
-    def load(self, checkpoint_directory, training_mode=True):
+    @staticmethod
+    def load_constructor_parameters(checkpoint, training_mode=True):
         """
-        Load the agent from a previously created checkpoint
-        :param checkpoint_directory: the directory containing the model
-        :param training_mode: should the agent be loaded for training?
-        :return: nothing
+        Load the constructor parameters from a checkpoint.
+        :param checkpoint: the chechpoint from which to load the parameters.
+        :param training_mode: True if the agent is being loaded for training, False otherwise.
+        :return: a dictionary containing the contrutor's parameters.
         """
-
-        # If the path is not a file, return without trying to load the model.
-        if not os.path.isfile(checkpoint_directory):
-            Logger.get().warn("Could not load model from: " + checkpoint_directory)
-            return
-
-        # Load checkpoint from path.
-        checkpoint = torch.load(checkpoint_directory)
-
-        # Load networks' weights.
-        self.decoder.load_state_dict(checkpoint["decoder_net_state_dict"])
-        self.encoder.load_state_dict(checkpoint["encoder_net_state_dict"])
-        self.transition.load_state_dict(checkpoint["transition_net_state_dict"])
-
-        # Set the mode requested be the user, i.e. training or testing mode.
-        if training_mode:
-            self.decoder.train()
-            self.encoder.train()
-            self.transition.train()
-        else:
-            self.decoder.eval()
-            self.encoder.eval()
-            self.transition.eval()
-
-        # Load parameters of beta scheduling.
-        self.beta = checkpoint["beta"]
-        self.n_steps_beta_reset = checkpoint["n_steps_beta_reset"]
-        self.beta_starting_step = checkpoint["beta_starting_step"]
-        self.beta_rate = checkpoint["beta_rate"]
-
-        # Load number of training steps performed to date.
-        self.steps_done = checkpoint["n_steps_done"]
+        return {
+            "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
+            "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
+            "transition": Checkpoint.load_transition(checkpoint, training_mode),
+            "lr": checkpoint["lr"],
+            "beta": checkpoint["beta"],
+            "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
+            "beta_starting_step": checkpoint["beta_starting_step"],
+            "beta_rate": checkpoint["beta_rate"],
+            "steps_done": checkpoint["steps_done"],
+            "queue_capacity": checkpoint["queue_capacity"],
+            "tensorboard_dir": checkpoint["tensorboard_dir"]
+        }

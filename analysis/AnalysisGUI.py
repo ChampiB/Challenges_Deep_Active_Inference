@@ -37,14 +37,14 @@ class AnalysisGUI:
         self.window.title(config["gui"]["title"])
         self.window.geometry(self.get_screen_size())
 
-        # Create the navigation bar.
-        self.navbar = NavBar(self)
-        self.window.config(menu=self.navbar)
-
         # The model, dataset and sample of the graphical user interface.
         self.model = None
         self.dataset = None
         self.samples = []
+
+        # Create the navigation bar.
+        self.navbar = NavBar(self)
+        self.window.config(menu=self.navbar)
 
         # Create the frame container.
         self.container = tk.Frame(self.window)
@@ -79,6 +79,24 @@ class AnalysisGUI:
         screen_size += "x"
         screen_size += str(self.window.winfo_screenheight())
         return screen_size
+
+    def add_sample(self, sample):
+        """
+        Add a sample to the gui.
+        :param sample: the sample to be added.
+        :return: nothing.
+        """
+        self.samples.append(sample)
+        if len(self.samples) == 1:
+            self.update_navbar()
+
+    def update_navbar(self):
+        """
+        Update the navigation bar.
+        :return: nothing.
+        """
+        self.navbar = NavBar(self)
+        self.window.config(menu=self.navbar)
 
     def show_frame(self, frame_name):
         """

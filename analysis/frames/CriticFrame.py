@@ -39,10 +39,6 @@ class CriticFrame(tk.Frame):
         Refresh the sample displayed in the galery.
         :return: nothing.
         """
-        # Check if the critic model is available.
-        if not hasattr(self.gui.model, 'critic'):
-            return
-
         # Get input images.
         in_imgs = self.gallery.get_current_images()
         if in_imgs is None:

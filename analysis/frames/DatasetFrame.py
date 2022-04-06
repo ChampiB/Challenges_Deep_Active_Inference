@@ -168,7 +168,7 @@ class DatasetFrame(tk.Frame):
         """
         images = self.get_images_from_dataset([self.get_index_of_target_image()])
         states = self.gui.model.encoder(images)[0]
-        self.gui.samples.append((images[0], states[0]))
+        self.gui.add_sample((images[0], states[0]))
 
     def get_index_of_target_image(self):
         """
@@ -225,7 +225,7 @@ class DatasetFrame(tk.Frame):
         images = self.get_images_from_dataset(self.images_to_be_added)
         states = self.gui.model.encoder(images)[0]
         for i in range(0, len(self.images_to_be_added)):
-            self.gui.samples.append((images[i], states[i]))
+            self.gui.add_sample((images[i], states[i]))
         self.refresh()
 
     def refresh(self):

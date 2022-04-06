@@ -1,11 +1,10 @@
 defaults:
   - env: dSprites
-  - agent: CAHMM
+  - agent: VAE
   - _self_
 
 checkpoint:
-  directory: "${oc.env:DATA_DIRECTORY}/${env.name}/${agent.name}/${seed}/model.pt"
-  save_directory: "${oc.env:DATA_DIRECTORY}/${env.name}/models/${agent.name}/model.pt" #TODO remove
+  file: "${oc.env:DATA_DIRECTORY}/${env.name}/${agent.name}/${seed}/model.pt"
   frequency: 100
 
 images:
@@ -13,8 +12,8 @@ images:
 
 display_gui: true
 enable_tensorboard: true
-n_training_steps: 10000000
+n_training_steps: 1000
 buffer_start_size: 50
 batch_size: 50
-seed: 50
+seed: 1001
 nb_envs: 5

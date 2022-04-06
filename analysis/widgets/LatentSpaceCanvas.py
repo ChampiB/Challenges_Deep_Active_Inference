@@ -7,34 +7,31 @@ from PIL import Image, ImageTk
 
 class LatentSpaceCanvas(tk.Canvas):
 
-    def __init__(self, parent, gui_data):
+    def __init__(self, parent, gui):
         """
         Construct a canvas displaying the latent space.
         :param parent: the parent of the clickable image.
-        :param gui_data: the gui data to be displayed.
+        :param gui: the gui data to be displayed.
         """
 
-        # Colors
-        self.white = parent.white
-
-        # Width and height of the canvas
+        # Width and height of the canvas.
         self.width = 1820
         self.height = 930
 
-        # Maximum and mimimum value of the latent space we are interested in
+        # Maximum and mimimum value of the latent space we are interested in.
         self.min_x = -10
         self.max_x = 10
         self.min_y = -10
         self.max_y = 10
 
-        # Initial right click position and flag indicating wheter the right click is being pressed
+        # Initial right click position and flag indicating wheter the right click is being pressed.
         self.pos_x = 0
         self.pos_y = 0
         self.right_click_on = False
 
-        super().__init__(parent, width=self.width, height=self.height, bg=self.white)
+        super().__init__(parent, width=self.width, height=self.height, bg=gui.white)
         self.parent = parent
-        self.gui_data = gui_data
+        self.gui = gui
         self.images_data = []
         self.bind("<Button-1>", self.on_click)
         self.bind("<Button-3>", self.on_right_click)
@@ -68,7 +65,7 @@ class LatentSpaceCanvas(tk.Canvas):
         :return: nothing.
         """
         # Check that the model is available
-        if self.gui_data.model is None:
+        if self.gui.model is None:
             error_msg = "You must provide the model before to be able add samples when clicking."
             messagebox.showerror("Error", error_msg)
             return
@@ -85,7 +82,7 @@ class LatentSpaceCanvas(tk.Canvas):
                 # Compute the latent coordinate and the corresponding image
                 state[0][int(self.parent.selected_dim_x.get())] = x_pos
                 state[0][int(self.parent.selected_dim_y.get())] = y_pos
-                image = self.to_photo_image(self.gui_data.model.decoder(state))
+                image = self.to_photo_image(self.gui.model.decoder(state))
                 self.images_data.append(image)
                 self.draw_image(x_pos, y_pos, image)
 
@@ -220,13 +217,13 @@ class LatentSpaceCanvas(tk.Canvas):
         Draw the samples on the canvas.
         :return: nothing.
         """
-        if self.gui_data.samples is None:
+        if self.gui.samples is None:
             return
         self.images_data = []
-        for i in range(0, len(self.gui_data.samples)):
-            image = self.to_photo_image(self.gui_data.samples[i][0])
+        for i in range(0, len(self.gui.samples)):
+            image = self.to_photo_image(self.gui.samples[i][0])
             self.images_data.append(image)
-            state = self.gui_data.samples[i][1]
+            state = self.gui.samples[i][1]
             x = state[int(self.parent.selected_dim_x.get())].item()
             y = state[int(self.parent.selected_dim_y.get())].item()
             self.draw_image(x, y, image)
@@ -281,12 +278,6 @@ class LatentSpaceCanvas(tk.Canvas):
         :param event: the event describing the user's click.
         :return: nothing.
         """
-        # Check that the model is available
-        if self.gui_data.model is None:
-            error_msg = "You must provide the model before to be able add samples when clicking."
-            messagebox.showerror("Error", error_msg)
-            return
-
         # Retreive latent state
         state = self.get_default_coords()
         latent_x, latent_y = self.compute_latent_pos(event.x, event.y)
@@ -294,10 +285,10 @@ class LatentSpaceCanvas(tk.Canvas):
         state[0][int(self.parent.selected_dim_y.get())] = latent_y
 
         # Retreive observation from state
-        obs = self.gui_data.model.decoder(state) * 255
+        obs = self.gui.model.decoder(state) * 255
 
         # Add the state-observation pair to the samples of the GUI
-        self.gui_data.samples.append((obs[0].detach(), state[0]))
+        self.gui.add_sample((obs[0].detach(), state[0]))
 
         # Refresh the GUI
         self.refresh()

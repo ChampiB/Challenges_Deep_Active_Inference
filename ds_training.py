@@ -7,8 +7,7 @@ import numpy as np
 import random
 import torch
 from singletons.Device import Device
-
-import os
+from agents.save.Checkpoint import Checkpoint
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
@@ -87,8 +86,8 @@ def train(config):
     train_loader, _ = load_dsprites(config, val_split=0.1)
 
     # Create the agent.
-    agent = instantiate(config["agent"])
-    agent.load(config["checkpoint"]["directory"])
+    archive = Checkpoint(config["checkpoint"]["file"])
+    agent = archive.load_model() if archive.exists() else instantiate(config["agent"])
 
     # Train the agent.
     for epoch in range(1, 100):
@@ -107,7 +106,7 @@ def train(config):
 
             # Save the agent (if needed).
             if agent.steps_done % config["checkpoint"]["frequency"] == 0:
-                agent.save(config["checkpoint"]["directory"])
+                agent.save(config["checkpoint"]["file"])
 
             # Increase number of steps done.
             agent.steps_done += 1

@@ -2,6 +2,7 @@ from environments import EnvFactory
 from environments.wrappers.DefaultWrappers import DefaultWrappers
 from singletons.Logger import Logger
 import hydra
+from agents.save.Checkpoint import Checkpoint
 from omegaconf import OmegaConf, open_dict
 from hydra.utils import instantiate
 import numpy as np
@@ -31,8 +32,8 @@ def train(config):
         envs.append(env)
 
     # Create the agent.
-    agent = instantiate(config["agent"])
-    agent.load(config["checkpoint"]["directory"])
+    archive = Checkpoint(config["checkpoint"]["file"])
+    agent = archive.load_model() if archive.exists() else instantiate(config["agent"])
 
     # Retrieve the initial observations from the environments.
     obs = []
@@ -68,7 +69,7 @@ def train(config):
 
         # Save the agent (if needed).
         if agent.steps_done % config["checkpoint"]["frequency"] == 0:
-            agent.save(config["checkpoint"]["directory"])
+            agent.save(config["checkpoint"]["file"])
 
         # Render the environment.
         if config["debug_mode"]:

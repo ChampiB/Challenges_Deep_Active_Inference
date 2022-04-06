@@ -37,6 +37,7 @@ class SampleFrame(tk.Frame):
         :return: nothing.
         """
         self.gui.samples = []
+        self.gui.update_navbar()
         self.refresh()
 
     def refresh(self):

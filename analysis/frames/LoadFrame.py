@@ -1,10 +1,8 @@
-from tkinter import ttk
 import tkinter as tk
 from tkinter import filedialog as fd
 from tkinter import messagebox
-from hydra.utils import instantiate
 from singletons.dSpritesDataset import DataSet
-from omegaconf import open_dict
+from agents.save.Checkpoint import Checkpoint
 
 
 #
@@ -34,22 +32,12 @@ class LoadFrame(tk.Frame):
         )
         self.model_button.grid(row=0, column=1, sticky=tk.NSEW)
 
-        # Model's number of dimension label and text box
-        self.model_n_latent = tk.Label(self, text="Number of latent dimensions:")
-        self.model_n_latent.grid(row=0, column=2, sticky=tk.NSEW)
-
-        self.selected_n_latent = tk.StringVar()
-        self.n_latent_cb = ttk.Combobox(self, textvariable=self.selected_n_latent, state='readonly', width=10)
-        self.n_latent_cb['values'] = [i for i in range(1, gui.max_latent_dims)]
-        self.n_latent_cb.current(9)
-        self.n_latent_cb.grid(row=0, column=3, sticky=tk.NSEW)
-
         # Load model button
         self.load_model_button = tk.Button(
             self, text='load', width=20, height=3, bg=self.gui.white,
             command=self.load_model
         )
-        self.load_model_button.grid(row=0, column=4, sticky=tk.NSEW)
+        self.load_model_button.grid(row=0, column=2, sticky=tk.NSEW)
 
         # Dataset button and label
         self.dataset_label = tk.Label(self, text="Dataset:")
@@ -60,7 +48,7 @@ class LoadFrame(tk.Frame):
         )
         self.dataset_button.grid(row=1, column=1, sticky=tk.NSEW)
 
-        # Load data button
+        # Load dataset button
         self.load_data_button = tk.Button(
             self, text='load', width=20, height=3, bg=self.gui.white,
             command=self.load_dataset
@@ -86,7 +74,7 @@ class LoadFrame(tk.Frame):
         if model_file is None:
             return
 
-        # Otherwise update buttun
+        # Update button color and text.
         self.model_file = model_file
         self.model_button['text'] = self.model_file.name.split('/')[-1]
         self.model_button['bg'] = self.gui.green
@@ -106,7 +94,7 @@ class LoadFrame(tk.Frame):
         if dataset_file is None:
             return
 
-        # Otherwise update buttun
+        # Update button color and text.
         self.dataset_file = dataset_file
         self.dataset_button['text'] = self.dataset_file.name.split('/')[-1]
         self.dataset_button['bg'] = self.gui.green
@@ -123,12 +111,11 @@ class LoadFrame(tk.Frame):
             return
 
         # Load the model and store it in the GUI
-        with open_dict(self.gui.config):
-            self.gui.config.agent.n_states = int(self.selected_n_latent.get())
-        with open_dict(self.gui.config):
-            self.gui.config.agent.n_states = int(self.selected_n_latent.get())
-        self.gui.model = instantiate(self.gui.config["agent"])
-        self.gui.model.load(self.model_file.name)
+        archive = Checkpoint(self.model_file.name)
+        if not archive.exists():
+            return
+        self.gui.model = archive.load_model()
+        self.gui.update_navbar()
 
     def load_dataset(self):
         """
@@ -143,6 +130,7 @@ class LoadFrame(tk.Frame):
 
         # Load the dataset and store it in the GUI.
         self.gui.dataset = DataSet.get(self.dataset_file.name)
+        self.gui.update_navbar()
 
     def refresh(self):
         pass
