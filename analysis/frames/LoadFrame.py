@@ -17,43 +17,51 @@ class LoadFrame(tk.Frame):
         :param gui: the class containing the data of the GUI.
         """
 
-        tk.Frame.__init__(self, parent)
+        super().__init__(parent)
 
         # Remember parent frame and configuration
         self.gui = gui
         self.parent = parent
 
+        # Create a sub-frame that will be centered in the middle of the screen.
+        # TODO self.container = tk.Frame(self)
+        # TODO self.container.pack(side="top", fill="both", expand=True)
+        # TODO self.container.grid_rowconfigure(0, weight=1)
+        # TODO self.container.grid_rowconfigure(3, weight=1)
+        # TODO self.container.grid_columnconfigure(0, weight=1)
+        # TODO self.container.grid_columnconfigure(4, weight=1)
+
         # Model button and label
         self.model_label = tk.Label(self, text="Model:")
-        self.model_label.grid(row=0, column=0, sticky=tk.NSEW)
+        self.model_label.grid(row=1, column=1, sticky="")
         self.model_button = tk.Button(
             self, text='Select a model...', width=30, height=3, bg=self.gui.red,
             activebackground=self.gui.orange, command=self.open_model_file
         )
-        self.model_button.grid(row=0, column=1, sticky=tk.NSEW)
+        self.model_button.grid(row=1, column=2, sticky="")
 
         # Load model button
         self.load_model_button = tk.Button(
             self, text='load', width=20, height=3, bg=self.gui.white,
             command=self.load_model
         )
-        self.load_model_button.grid(row=0, column=2, sticky=tk.NSEW)
+        self.load_model_button.grid(row=1, column=3, sticky="")
 
         # Dataset button and label
         self.dataset_label = tk.Label(self, text="Dataset:")
-        self.dataset_label.grid(row=1, column=0, sticky=tk.NSEW)
+        self.dataset_label.grid(row=2, column=1, sticky="")
         self.dataset_button = tk.Button(
             self, text='Select a dataset...', width=30, height=3, bg=self.gui.red,
             activebackground=self.gui.orange, command=self.open_dataset_file
         )
-        self.dataset_button.grid(row=1, column=1, sticky=tk.NSEW)
+        self.dataset_button.grid(row=2, column=2, sticky="")
 
         # Load dataset button
         self.load_data_button = tk.Button(
             self, text='load', width=20, height=3, bg=self.gui.white,
             command=self.load_dataset
         )
-        self.load_data_button.grid(row=1, column=2, sticky=tk.NSEW)
+        self.load_data_button.grid(row=2, column=3, sticky="")
 
         # Model and dataset files
         self.model_file = None

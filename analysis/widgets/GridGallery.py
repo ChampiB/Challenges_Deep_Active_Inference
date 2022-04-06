@@ -7,7 +7,7 @@ import tkinter as tk
 #
 # Class representing a gallery in which images and data can be displayed.
 #
-class Gallery(tk.Frame):
+class GridGallery(tk.Frame):
 
     def __init__(self, parent, gui, refresh_fc):
         """
@@ -52,57 +52,27 @@ class Gallery(tk.Frame):
         # Store the refresh function.
         self.refresh_callback = refresh_fc
 
-    def add_image_column(self, col_name):
+    def add_image_grid(self, grid_name):
         """
-        Add a column used to display images to the gallery.
-        :param col_name: the column's name.
+        Add a grid of images to the gallery.
+        :param grid_name: the grid's name.
         :return: self.
         """
         # Add the column's name.
-        self.__add_column_name(col_name)
+        self.__add_column_name(grid_name, self.gui.n_samples_per_page)
 
         # Initialise the list of images and labels of the new column with default values.
-        self.images[col_name] = []
-        self.images_labels[col_name] = []
+        self.images[grid_name] = []
+        self.images_labels[grid_name] = []
         for y in range(0, self.gui.n_samples_per_page):
-            self.images[col_name].append(self.empty_image)
-            label = tk.Label(self, image=self.empty_image)
-            label.grid(row=y+1, column=self.column_id, sticky=tk.NSEW)
-            self.images_labels[col_name].append(label)
+            for x in range(0, self.gui.n_samples_per_page):
+                self.images[grid_name].append(self.empty_image)
+                label = tk.Label(self, image=self.empty_image)
+                label.grid(row=y+1, column=self.column_id+x, sticky=tk.NSEW)
+                self.images_labels[grid_name].append(label)
 
         # Increase current column index.
-        self.column_id += 1
-        return self
-
-    def add_data_column(self, col_name, data_dim, sub_cols_names=None):
-        """
-        Add a column used to display some numerical data.
-        :param col_name: the column name.
-        :param data_dim: the dimensionality of the displayed data.
-        :param sub_cols_names: the list of the sub columns' names. The number of elements
-        in the list is equal to data_dim. If sub_cols_names is None, the col_name is used insteed.
-        :return: self.
-        """
-        # Add the column's name.
-        if sub_cols_names is None or len(sub_cols_names) != data_dim:
-            self.__add_column_name(col_name, data_dim)
-        else:
-            for i in range(0, len(sub_cols_names)):
-                self.__add_column_name(sub_cols_names[i], shift=i)
-
-        # Initialise the list labels of the new column.
-        self.data_labels[col_name] = []
-
-        # Fill up the new column with default values.
-        for y in range(0, self.gui.n_samples_per_page):
-            self.data_labels[col_name].append([])
-            for x in range(0, data_dim):
-                label = tk.Label(self, text=self.empty_data)
-                label.grid(row=y+1, column=x+self.column_id, sticky=tk.NSEW, padx=5, pady=5)
-                self.data_labels[col_name][y].append(label)
-
-        # Increase current column index.
-        self.column_id += data_dim
+        self.column_id += self.gui.n_samples_per_page
         return self
 
     def add_empty_column(self):
@@ -156,7 +126,7 @@ class Gallery(tk.Frame):
 
         # Retreive the indices of the current images.
         indices = []
-        for y in range(0, self.gui.n_samples_per_page):
+        for y in range(0, self.gui.n_samples_per_page ** 2):
             index = self.curr_index + y
             if index < len(self.gui.samples):
                 indices.append(index)
@@ -240,7 +210,7 @@ class Gallery(tk.Frame):
         Display the previous set of selected samples.
         :return: nothing.
         """
-        self.curr_index -= self.gui.n_samples_per_page
+        self.curr_index -= self.gui.n_samples_per_page ** 2
         self.curr_index = 0 if self.curr_index < 0 else self.curr_index
         self.refresh_callback()
 
@@ -249,9 +219,9 @@ class Gallery(tk.Frame):
         Display the next set of samples.
         :return: nothing.
         """
-        self.curr_index += self.gui.n_samples_per_page
+        self.curr_index += self.gui.n_samples_per_page ** 2
         if self.curr_index >= len(self.gui.samples):
-            self.curr_index -= self.gui.n_samples_per_page
+            self.curr_index -= self.gui.n_samples_per_page ** 2
         self.refresh_callback()
 
     def __add_column_name(self, col_name, columnspan=1, shift=0):

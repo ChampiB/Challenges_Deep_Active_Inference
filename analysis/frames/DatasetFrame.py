@@ -23,11 +23,6 @@ class DatasetFrame(tk.Frame):
         self.parent = parent
         self.gui = gui
 
-        # Colors
-        self.white = gui.config["colors"]["white"]
-        self.green = gui.config["colors"]["green"]
-        self.orange = gui.config["colors"]["orange"]
-
         # The list of indices of all the images that needs to be added to the sample
         self.images_to_be_added = []
 
@@ -49,21 +44,21 @@ class DatasetFrame(tk.Frame):
 
         # Prev button
         self.load_button = tk.Button(
-            self, text='prev', height=2, bg=self.white,
+            self, text='prev', height=2, bg=self.gui.white,
             command=self.display_previous_images
         )
         self.load_button.grid(row=self.height+1, column=0, sticky=tk.NSEW)
 
         # Next button
         self.load_button = tk.Button(
-            self, text='next', height=2, bg=self.white,
+            self, text='next', height=2, bg=self.gui.white,
             command=self.display_next_images
         )
         self.load_button.grid(row=self.height+1, column=self.width-1, sticky=tk.NSEW)
 
         # Add button
         self.load_button = tk.Button(
-            self, text='add', height=2, bg=self.white,
+            self, text='add', height=2, bg=self.gui.white,
             command=self.add_images_to_sample
         )
         self.load_button.grid(row=self.height+1, column=int(self.width/2), sticky=tk.NSEW)
@@ -128,7 +123,7 @@ class DatasetFrame(tk.Frame):
 
         # Add button to select add target image
         self.load_button_2 = tk.Button(
-            self, text='add', height=2, bg=self.white, width=10,
+            self, text='add', height=2, bg=self.gui.white, width=10,
             command=self.add_target_image_to_sample
         )
         self.load_button_2.grid(row=self.height+2, column=self.width+7, sticky=tk.NSEW)
@@ -167,8 +162,7 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         images = self.get_images_from_dataset([self.get_index_of_target_image()])
-        states = self.gui.model.encoder(images)[0]
-        self.gui.add_sample((images[0], states[0]))
+        self.gui.add_sample((images[0], None))
 
     def get_index_of_target_image(self):
         """
@@ -201,15 +195,15 @@ class DatasetFrame(tk.Frame):
 
         # Retreive target image
         image = self.get_images_from_dataset([i])
-        image = np.squeeze(image * 255)
-        self.target_image = ImageTk.PhotoImage(image=Image.fromarray(image.numpy()))
+        image = np.squeeze(image.numpy() * 255)
+        self.target_image = ImageTk.PhotoImage(image=Image.fromarray(image))
 
         # Update target image
         self.target_image_label.configure(image=self.target_image)
 
     def get_images_from_dataset(self, indices):
         """
-        Retreive a images from the dataset.
+        Retreive an images from the dataset.
         :param indices: the indices of the images to be retreived.
         :return: the retieved images.
         """
@@ -223,9 +217,8 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         images = self.get_images_from_dataset(self.images_to_be_added)
-        states = self.gui.model.encoder(images)[0]
         for i in range(0, len(self.images_to_be_added)):
-            self.gui.add_sample((images[i], states[i]))
+            self.gui.add_sample((images[i], None))
         self.refresh()
 
     def refresh(self):
@@ -247,4 +240,3 @@ class DatasetFrame(tk.Frame):
 
         # Refresh target image
         self.refresh_target_image(None)
-

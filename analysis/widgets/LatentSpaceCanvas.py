@@ -136,14 +136,14 @@ class LatentSpaceCanvas(tk.Canvas):
         while x_pos < self.max_x:
             if x_pos == 0:
                 pass
-            self.draw_text(x_pos, -0.5, str(round(x_pos, 2)))
+            self.draw_text(x_pos, -0.02 * (self.max_x - self.min_x), str(round(x_pos, 2)))
             x_pos += x_inc
 
         y_pos = self.min_y + y_inc
         while y_pos < self.max_y:
             if y_pos == 0:
                 pass
-            self.draw_text(-0.5, y_pos, str(round(y_pos, 2)))
+            self.draw_text(-0.01 * (self.max_y - self.min_y), y_pos, str(round(y_pos, 2)))
             y_pos += y_inc
 
     def is_valid_pos(self, x, y):
@@ -217,13 +217,16 @@ class LatentSpaceCanvas(tk.Canvas):
         Draw the samples on the canvas.
         :return: nothing.
         """
-        if self.gui.samples is None:
+        if self.gui.samples is None or len(self.gui.samples) == 0:
             return
         self.images_data = []
         for i in range(0, len(self.gui.samples)):
             image = self.to_photo_image(self.gui.samples[i][0])
             self.images_data.append(image)
             state = self.gui.samples[i][1]
+            if state is None:
+                img = torch.unsqueeze(self.gui.samples[i][0], dim=0)
+                state = self.gui.model.encoder(img)[0][0]
             x = state[int(self.parent.selected_dim_x.get())].item()
             y = state[int(self.parent.selected_dim_y.get())].item()
             self.draw_image(x, y, image)
@@ -260,13 +263,13 @@ class LatentSpaceCanvas(tk.Canvas):
 
         self.min_x += shift
         self.max_x -= shift
-        if self.min_x > self.max_x:
+        if self.min_x >= self.max_x:
             self.min_x -= shift
             self.max_x += shift
 
         self.min_y += shift
         self.max_y -= shift
-        if self.min_y > self.max_y:
+        if self.min_y >= self.max_y:
             self.min_y -= shift
             self.max_y += shift
 

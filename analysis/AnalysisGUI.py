@@ -51,6 +51,8 @@ class AnalysisGUI:
         self.container.pack(side="top", fill="both", expand=True)
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
+        self.container.grid_rowconfigure(2, weight=1)
+        self.container.grid_columnconfigure(2, weight=1)
 
         # The dictionary of frames' constructor.
         self.frames_classes = {
@@ -66,6 +68,7 @@ class AnalysisGUI:
 
         # The list of currently loaded frames.
         self.frames = {}
+        self.current_frame = None
 
         # Show the page used to load the model and dataset.
         self.show_frame("LoadFrame")
@@ -107,13 +110,15 @@ class AnalysisGUI:
         # Construct the frame if it does not already exist.
         if frame_name not in self.frames.keys():
             frame = self.frames_classes[frame_name](parent=self.container, gui=self)
-            frame.grid(row=0, column=0, sticky="nsew")
             self.frames[frame_name] = frame
 
         # Display the requested frame.
-        frame = self.frames[frame_name]
-        frame.refresh()
-        frame.tkraise()
+        if self.current_frame is not None:
+            self.current_frame.grid_forget()
+        self.current_frame = self.frames[frame_name]
+        self.current_frame.grid(row=1, column=1, sticky="")
+        self.current_frame.refresh()
+        self.current_frame.tkraise()
 
     def loop(self):
         """

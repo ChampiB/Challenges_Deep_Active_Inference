@@ -1,7 +1,5 @@
 import tkinter as tk
-import numpy as np
-from PIL import Image, ImageTk
-from analysis.widgets.Gallery import Gallery
+from analysis.widgets.GridGallery import GridGallery
 
 
 #
@@ -17,9 +15,8 @@ class SampleFrame(tk.Frame):
         self.gui = gui
 
         # Create the gallery.
-        self.gallery = Gallery(self, gui, self.refresh) \
-            .add_image_column("Image") \
-            .add_data_column("Latent representation", gui.config["agent"]["n_states"])
+        self.gallery = GridGallery(self, gui, self.refresh) \
+            .add_image_grid("Images")
 
         # Create the clear button.
         self.clear_button = tk.Button(
@@ -29,7 +26,7 @@ class SampleFrame(tk.Frame):
 
         # Create the control bar of the gallery.
         self.gallery.add_control_bar([self.clear_button])
-        self.gallery.grid(row=0, column=0, sticky=tk.NSEW)
+        self.gallery.grid(row=0, column=0, sticky="")
 
     def clear_all_samples(self):
         """
@@ -51,12 +48,5 @@ class SampleFrame(tk.Frame):
             self.gallery.reset()
             return
 
-        # Compute the state representations.
-        states = self.gui.model.encoder(in_imgs)[0]
-
         # Update the gallery.
-        self.gallery.refresh({
-            "Image": in_imgs,
-        }, {
-            "Latent representation": states
-        })
+        self.gallery.refresh({"Images": in_imgs}, {})
