@@ -5,6 +5,7 @@ from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 import agents.math.functions as mathfc
+from singletons.Device import Device
 from torch import zeros_like
 from torch.optim import Adam
 import torch
@@ -37,6 +38,9 @@ class VAE:
         self.encoder = encoder
         self.decoder = decoder
 
+        # Ensure models are on the right device.
+        self.to_device()
+
         # Optimizer.
         params = list(encoder.parameters()) + list(decoder.parameters())
         self.optimizer = Adam(params, lr=lr)
@@ -54,6 +58,14 @@ class VAE:
         self.lr = lr
         self.queue_capacity = queue_capacity
         self.tensorboard_dir = tensorboard_dir
+
+    def to_device(self):
+        """
+        Send the models on the right device, i.e. CPU or GPU.
+        :return: nothins
+        """
+        self.encoder.to(Device.get())
+        self.decoder.to(Device.get())
 
     @staticmethod
     def step(_, config):

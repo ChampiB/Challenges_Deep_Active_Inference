@@ -5,6 +5,7 @@ from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 import agents.math.functions as mathfc
+from singletons.Device import Device
 from torch.optim import Adam
 import torch
 
@@ -39,6 +40,9 @@ class HMM:
         self.decoder = decoder
         self.transition = transition
 
+        # Ensure models are on the right device.
+        self.to_device()
+
         # Optimizer.
         params = \
             list(encoder.parameters()) + \
@@ -59,6 +63,15 @@ class HMM:
         self.lr = lr
         self.queue_capacity = queue_capacity
         self.tensorboard_dir = tensorboard_dir
+
+    def to_device(self):
+        """
+        Send the models on the right device, i.e. CPU or GPU.
+        :return: nothins
+        """
+        self.encoder.to(Device.get())
+        self.decoder.to(Device.get())
+        self.transition.to(Device.get())
 
     @staticmethod
     def step(_, config):
