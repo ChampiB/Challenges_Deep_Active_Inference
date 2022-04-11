@@ -27,7 +27,7 @@ def train(config):
     env = DefaultWrappers.apply(env, config["images"]["shape"])
 
     # Create the agent and train it.
-    archive = Checkpoint(config["checkpoint"]["file"])
+    archive = Checkpoint(config, config["checkpoint"]["file"])
     agent = archive.load_model() if archive.exists() else instantiate(config["agent"])
     agent.train(env, config)
 

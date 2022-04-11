@@ -55,7 +55,7 @@ class DiscriminatorFrame(tk.Frame):
         nb_samples = state.shape[0]
         actions = torch.IntTensor([i / nb_samples for i in range(0, self.n_actions * nb_samples)]).to(Device.get())
         next_state, _ = self.gui.model.transition(state.repeat(self.n_actions, 1), actions)
-        next_obs = self.gui.model.decoder(next_state)
+        next_obs = self.gui.model.decode_images(next_state)
 
         # Ask the dicriminator whether the images are realistic.
         are_real = self.gui.model.encoder(next_obs)[2]

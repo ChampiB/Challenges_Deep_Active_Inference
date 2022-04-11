@@ -3,6 +3,8 @@ import gym
 from gym import spaces
 from environments.viewers.DefaultViewer import DefaultViewer
 from singletons.dSpritesDataset import DataSet
+import torch.nn.functional as func
+import torch
 
 
 #
@@ -37,6 +39,30 @@ class dSpritesEnv(gym.Env):
 
         # Graphical interface
         self.viewer = None
+
+    @staticmethod
+    def state_to_one_hot(state):
+        """
+        Transform a state into its one hot representation.
+        :param state: the state to transform.
+        :return: the one-hot version of the state.
+        """
+        shape = func.one_hot(state[1], 3)
+        scale = func.one_hot(state[2], 6)
+        orientation = func.one_hot(state[3], 40)
+        pos_x = func.one_hot(state[4], 32)
+        pos_y = func.one_hot(state[5], 32)
+        return torch.cat([shape, scale, orientation, pos_x, pos_y], dim=0).to(torch.float32)
+
+    def get_state(self, one_hot=True):
+        """
+        Getter on the current state of the system.
+        :param one_hot: True if the outputs must be a concatenation of one hot encoding,
+        False if the outputs must be a vector of scalar values.
+        :return: the current state.
+        """
+        state = torch.from_numpy(self.state).to(torch.int64)
+        return self.state_to_one_hot(state) if one_hot else self.state
 
     def reset(self):
         """

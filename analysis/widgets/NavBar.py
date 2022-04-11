@@ -58,6 +58,8 @@ class NavBar(tk.Menu):
             self.modelbar.add_command(label="Transition", command=self.transition_cmd)
         if self.model_has_attr(['encoder', 'critic']):
             self.modelbar.add_command(label="Critic", command=self.critic_cmd)
+        if not self.model_has_attr('encoder') and self.model_has_attr(['critic']):
+            self.modelbar.add_command(label="Critic", command=self.critic_without_encoder_cmd)
         if self.model_has_attr(['encoder', 'decoder', 'transition', 'discriminator']):
             self.modelbar.add_command(label="Discriminator", command=self.discriminator_cmd)
         self.add_cascade(label="Model", menu=self.modelbar)
@@ -156,6 +158,13 @@ class NavBar(tk.Menu):
         :return: nothing.
         """
         self.gui.show_frame("CriticFrame")
+
+    def critic_without_encoder_cmd(self):
+        """
+        Display the page used visualise the critic outputs when no encoder is available.
+        :return: nothing.
+        """
+        self.gui.show_frame("CriticWithoutEncoderFrame")
 
     def dataset_cmd(self):
         """

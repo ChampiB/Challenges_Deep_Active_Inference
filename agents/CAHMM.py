@@ -9,7 +9,7 @@ from singletons.Device import Device
 from torch.distributions.categorical import Categorical
 from torch import nn, unsqueeze
 from torch.optim import Adam
-import agents.math.functions as mathfc
+import agents.math_fc.functions as mathfc
 import torch
 
 
@@ -32,6 +32,7 @@ class CAHMM:
         :param decoder: the decoder network
         :param transition: the transition network
         :param critic: the critic network
+        :param discount_factor: the factor by which the future EFE is discounted.
         :param n_steps_beta_reset: the number of steps after with beta is reset
         :param beta_starting_step: the number of steps after which beta start increasing
         :param beta: the initial value for beta
@@ -166,6 +167,7 @@ class CAHMM:
         next_state, _ = self.transition(state.repeat(self.n_actions, 1), self.actions)
         next_obs = self.decode_images(next_state)
         _, _, are_real = self.encoder(next_obs)
+        print("Are real? {}".format(are_real))
         are_real = torch.gt(are_real, self.discriminator_threshold)
 
         # Display whether the agent is exploring or exploiting.
@@ -181,11 +183,13 @@ class CAHMM:
 
         # If some actions do not lead to realistic observations, select one of those actions.
         if not torch.all(are_real):
+            print("Exploration!")
             are_real = torch.logical_not(are_real).to(torch.float64)
             are_real = are_real / are_real.sum()
             return Categorical(torch.squeeze(are_real)).sample()
 
         # Else select the action that maximises the EFE predicted by the critic.
+        print("Best action!")
         return self.critic(state).max(1)[1].item()  # Best action.
 
     def train(self, env, config):
@@ -395,9 +399,11 @@ class CAHMM:
         :param states: the input state that needs to be decoded.
         :return: the decoded images.
         """
+        # TODO epsilon = 0.1
         image = self.decoder(states).exp()
-        epsilon = 0.0001
-        return torch.clamp(image, min=epsilon, max=1 - epsilon)
+        return torch.clamp(image, min=0, max=1)
+        # TODO image = torch.where(image < epsilon, torch.zeros_like(image), image)
+        # TODO return torch.where(image > 1 - epsilon, torch.ones_like(image), image)
 
     def synchronize_target(self):
         """
@@ -454,9 +460,10 @@ class CAHMM:
         }, checkpoint_file)
 
     @staticmethod
-    def load_constructor_parameters(checkpoint, training_mode=True):
+    def load_constructor_parameters(config, checkpoint, training_mode=True):
         """
         Load the constructor parameters from a checkpoint.
+        :param config: the hydra configuration.
         :param checkpoint: the chechpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
         :return: a dictionary containing the contrutor's parameters.
@@ -477,7 +484,7 @@ class CAHMM:
             "discount_factor": checkpoint["discount_factor"],
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
-            "tensorboard_dir": checkpoint["tensorboard_dir"],
+            "tensorboard_dir": config["agent"]["tensorboard_dir"],
             "g_value": checkpoint["g_value"],
             "discriminator_threshold": checkpoint["discriminator_threshold"],
             "n_actions": checkpoint["n_actions"]

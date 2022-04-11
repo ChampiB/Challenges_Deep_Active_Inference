@@ -145,6 +145,39 @@ class Gallery(tk.Frame):
         self.next_button.grid(row=self.gui.n_samples_per_page+2, column=self.column_id-1, sticky=tk.NSEW)
         return self
 
+    def get_current_indices(self):
+        """
+        Getter.
+        :return: the current indices of the sample displayed in the gallery.
+        """
+        indices = []
+        for y in range(0, self.gui.n_samples_per_page):
+            index = self.curr_index + y
+            if index < len(self.gui.samples):
+                indices.append(index)
+            else:
+                break
+        return indices
+
+    def get_current_states(self):
+        """
+        Getter.
+        :return: the current states of the sample displayed in the gallery.
+        """
+        # Reset the current index if it exceeds the number of samples.
+        if self.curr_index >= len(self.gui.samples):
+            self.curr_index = 0
+
+        # Retreive the indices of the current states.
+        indices = self.get_current_indices()
+
+        # If no states are available, return None.
+        if len(indices) == 0:
+            return None
+
+        # Gather the current states.
+        return torch.cat([torch.unsqueeze(self.gui.samples[i][1], dim=0) for i in indices])
+
     def get_current_images(self):
         """
         Getter.
@@ -155,13 +188,7 @@ class Gallery(tk.Frame):
             self.curr_index = 0
 
         # Retreive the indices of the current images.
-        indices = []
-        for y in range(0, self.gui.n_samples_per_page):
-            index = self.curr_index + y
-            if index < len(self.gui.samples):
-                indices.append(index)
-            else:
-                break
+        indices = self.get_current_indices()
 
         # If no images are available, return None.
         if len(indices) == 0:

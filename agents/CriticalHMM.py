@@ -5,7 +5,7 @@ import copy
 from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
-import agents.math.functions as mathfc
+import agents.math_fc.functions as mathfc
 from singletons.Device import Device
 from torch import nn, unsqueeze
 from torch.optim import Adam
@@ -28,6 +28,7 @@ class CriticalHMM:
         :param decoder: the decoder network
         :param transition: the transition network
         :param critic: the critic network
+        :param discount_factor: the factor by which the future EFE is discounted.
         :param n_steps_beta_reset: the number of steps after with beta is reset
         :param beta_starting_step: the number of steps after which beta start increasing
         :param beta: the initial value for beta
@@ -366,9 +367,10 @@ class CriticalHMM:
         }, checkpoint_file)
 
     @staticmethod
-    def load_constructor_parameters(checkpoint, training_mode=True):
+    def load_constructor_parameters(config, checkpoint, training_mode=True):
         """
         Load the constructor parameters from a checkpoint.
+        :param config: the hydra configuration.
         :param checkpoint: the chechpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
         :return: a dictionary containing the contrutor's parameters.
@@ -385,7 +387,7 @@ class CriticalHMM:
             "beta_starting_step": checkpoint["beta_starting_step"],
             "beta_rate": checkpoint["beta_rate"],
             "discount_factor": checkpoint["discount_factor"],
-            "tensorboard_dir": checkpoint["tensorboard_dir"],
+            "tensorboard_dir": config["agent"]["tensorboard_dir"],
             "g_value": checkpoint["g_value"],
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],

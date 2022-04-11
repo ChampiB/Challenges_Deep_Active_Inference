@@ -1,6 +1,6 @@
 defaults:
   - env: dSprites
-  - agent: VAE
+  - agent: Critic
   - _self_
 
 checkpoint:
@@ -12,8 +12,8 @@ images:
 
 display_gui: true
 enable_tensorboard: true
-n_training_steps: 1000
+n_training_steps: 500000
 buffer_start_size: 50
 batch_size: 50
-seed: 1001
+seed: 4
 nb_envs: 5

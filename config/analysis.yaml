@@ -1,12 +1,17 @@
 gui:
   title: "Model analysis"
   max_latent_dims: 20
+  logo: "${oc.env:DATA_DIRECTORY}/logo.png"
+  close_button: "${oc.env:DATA_DIRECTORY}/close_button.png"
+  close_button_hover: "${oc.env:DATA_DIRECTORY}/close_button_hover.png"
 
 colors:
   red: "#e00000"
   green: "#1d7500"
   orange: "#de9b00"
   white: "#ffffff"
+  darkgray: "#454545"
+  lightgray: "#d5d5d5"
 
 gallery:
   n_samples_per_page: 10

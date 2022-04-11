@@ -162,13 +162,9 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         images = self.get_images_from_dataset([self.get_index_of_target_image()])
-        self.gui.add_sample((images[0], None))
+        self.gui.add_sample((images[0], torch.from_numpy(self.get_state())))
 
-    def get_index_of_target_image(self):
-        """
-        Getter.
-        :return: the index of the target image.
-        """
+    def get_state(self):
         # Create latent representation
         state = np.zeros(6)
         state[1] = self.shape_cb['values'].index(self.shape_cb.get())
@@ -176,9 +172,15 @@ class DatasetFrame(tk.Frame):
         state[3] = float(self.orientation_cb.get())
         state[4] = float(self.x_pos_cb.get())
         state[5] = float(self.y_pos_cb.get())
+        return state
 
+    def get_index_of_target_image(self):
+        """
+        Getter.
+        :return: the index of the target image.
+        """
         # Retreive image's index and image
-        return np.dot(state, self.gui.dataset[3]).astype(int)
+        return np.dot(self.get_state(), self.gui.dataset[3]).astype(int)
 
     def refresh_target_image(self, event):
         """
@@ -218,7 +220,7 @@ class DatasetFrame(tk.Frame):
         """
         images = self.get_images_from_dataset(self.images_to_be_added)
         for i in range(0, len(self.images_to_be_added)):
-            self.gui.add_sample((images[i], None))
+            self.gui.add_sample((images[i], None))  # TODO add state
         self.refresh()
 
     def refresh(self):

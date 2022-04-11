@@ -7,6 +7,7 @@ from analysis.frames.SampleFrame import SampleFrame
 from analysis.frames.VisualisationFrame import VisualisationFrame
 from analysis.frames.CriticFrame import CriticFrame
 from analysis.frames.DiscriminatorFrame import DiscriminatorFrame
+from analysis.frames.CriticWithoutEncoderFrame import CriticWithoutEncoderFrame
 from analysis.widgets.NavBar import NavBar
 
 
@@ -31,9 +32,12 @@ class AnalysisGUI:
         self.red = config["colors"]["red"]
         self.green = config["colors"]["green"]
         self.orange = config["colors"]["orange"]
+        self.darkgray = config["colors"]["darkgray"]
+        self.lightgray = config["colors"]["lightgray"]
 
         # Create the main window.
         self.window = tk.Tk()
+
         self.window.title(config["gui"]["title"])
         self.window.geometry(self.get_screen_size())
 
@@ -60,6 +64,7 @@ class AnalysisGUI:
             "EncoderDecoderFrame": EncoderDecoderFrame,
             "TransitionFrame": TransitionFrame,
             "CriticFrame": CriticFrame,
+            "CriticWithoutEncoderFrame": CriticWithoutEncoderFrame,
             "DiscriminatorFrame": DiscriminatorFrame,
             "DatasetFrame": DatasetFrame,
             "SampleFrame": SampleFrame,
@@ -78,9 +83,10 @@ class AnalysisGUI:
         Getter.
         :return: the screen' size.
         """
-        screen_size = str(self.window.winfo_screenwidth())
+        screen_size = str(self.window.winfo_screenwidth() - 85)
         screen_size += "x"
-        screen_size += str(self.window.winfo_screenheight())
+        screen_size += str(self.window.winfo_screenheight() - 75)
+        screen_size += "+85+35"
         return screen_size
 
     def add_sample(self, sample):

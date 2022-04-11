@@ -23,14 +23,6 @@ class LoadFrame(tk.Frame):
         self.gui = gui
         self.parent = parent
 
-        # Create a sub-frame that will be centered in the middle of the screen.
-        # TODO self.container = tk.Frame(self)
-        # TODO self.container.pack(side="top", fill="both", expand=True)
-        # TODO self.container.grid_rowconfigure(0, weight=1)
-        # TODO self.container.grid_rowconfigure(3, weight=1)
-        # TODO self.container.grid_columnconfigure(0, weight=1)
-        # TODO self.container.grid_columnconfigure(4, weight=1)
-
         # Model button and label
         self.model_label = tk.Label(self, text="Model:")
         self.model_label.grid(row=1, column=1, sticky="")
@@ -119,7 +111,7 @@ class LoadFrame(tk.Frame):
             return
 
         # Load the model and store it in the GUI
-        archive = Checkpoint(self.model_file.name)
+        archive = Checkpoint(self.gui.config, self.model_file.name)
         if not archive.exists():
             return
         self.gui.model = archive.load_model()

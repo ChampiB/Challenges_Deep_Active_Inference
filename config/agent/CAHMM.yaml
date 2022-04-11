@@ -4,7 +4,7 @@ defaults:
   - encoder: convolutional64adversarial
   - decoder: convolutional64
   - transition: linearRelu
-  - critic: linearRelu
+  - critic: linearReluDropout4x100
 
 _target_: agents.CAHMM.CAHMM
 
