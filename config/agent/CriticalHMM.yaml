@@ -3,7 +3,7 @@ name: critical_hmm
 defaults:
   - encoder: convolutional64
   - decoder: convolutional64
-  - transition: linearRelu
+  - transition: LinearRelu3x100
   - critic: linearRelu4x100
 
 _target_: agents.CriticalHMM.CriticalHMM

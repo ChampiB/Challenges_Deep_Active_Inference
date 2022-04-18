@@ -1,5 +1,5 @@
 from math import prod
-from agents.dgn_networks.DiagonalGaussian import DiscriminativeDiagonalGaussian as DiscriminativeGaussian
+from agents.layers.DiagonalGaussian import DiscriminativeDiagonalGaussian as DiscriminativeGaussian
 from torch import nn, zeros
 
 

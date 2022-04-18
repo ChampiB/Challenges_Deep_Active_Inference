@@ -1,0 +1,41 @@
+name: daimc
+
+defaults:
+  - encoder: convolutionalDAIMC
+  - decoder: convolutionalDAIMC
+  - transition: linearReluDropout4x512
+  - critic: linearRelu3x128
+
+_target_: agents.DAIMC.DAIMC
+
+# Learning rates
+lr_critic: 1e-04
+lr_transition: 1e-04
+lr_vae: 0.001
+
+# Omega parameter for top-down attention
+a: 1.0
+b: 25.0
+c: 5.0
+d: 1.5
+
+# Gamma parameter:
+#  VFE = - ln P(o|s) +      gamma  * KL[Q(s)||P(s|s,a)]
+#                    + (1 - gamma) * KL[Q(s)||N(s;0,1)]
+gamma: 0.0
+gamma_rate: 0.01
+gamma_max: 0.8
+gamma_delay: 30
+
+# Beta parameters of Beta-VAE:
+#      VAE = beta_o * accuracy + beta_s * complexity
+beta_s: 1.0
+beta_o: 1.0
+
+# Miscellaneous
+n_states: 10
+n_actions: ${env.n_actions}
+efe_deepness: 1
+efe_n_samples: 1
+queue_capacity: 50000
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/DAIMC_${env.name}_${seed}"

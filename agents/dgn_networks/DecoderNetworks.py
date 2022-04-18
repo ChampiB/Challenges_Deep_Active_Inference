@@ -1,5 +1,6 @@
 from math import prod
 from torch import nn
+from agents.layers.ConvTranspose2d import ConvTranspose2d
 import torch
 
 
@@ -8,7 +9,7 @@ import torch
 #
 class ConvDecoder84(nn.Module):
 
-    def __init__(self, n_states, image_shape=(1, 28, 28)):
+    def __init__(self, n_states, image_shape):
         """
         Constructor.
         :param n_states: the number of hidden variables, i.e., number of dimension in the Gaussian.
@@ -17,7 +18,7 @@ class ConvDecoder84(nn.Module):
 
         super().__init__()
 
-        # Create the encoder network.
+        # Create the deconvolutional network.
         self.__lin_net = nn.Sequential(
             nn.Linear(n_states, 256),
             nn.ReLU(),
@@ -71,7 +72,7 @@ class ConvDecoder84(nn.Module):
 #
 class ConvDecoder64(nn.Module):
 
-    def __init__(self, n_states, image_shape=(1, 28, 28)):
+    def __init__(self, n_states, image_shape):
         """
         Constructor.
         :param n_states: the number of hidden variables, i.e., number of dimension in the Gaussian.
@@ -80,7 +81,7 @@ class ConvDecoder64(nn.Module):
 
         super().__init__()
 
-        # Create the encoder network.
+        # Create the deconvolutional network.
         self.__lin_net = nn.Sequential(
             nn.Linear(n_states, 256),
             nn.ReLU(),
@@ -105,4 +106,55 @@ class ConvDecoder64(nn.Module):
         """
         x = self.__lin_net(x)
         x = torch.reshape(x, (x.shape[0], 64, 5, 5))
+        return self.__up_conv_net(x)
+
+
+#
+# Class implementing a deconvolution decoder for 64 by 64 images.
+#
+class ConvDecoderDAIMC(nn.Module):
+
+    def __init__(self, n_states, image_shape):
+        """
+        Constructor.
+        :param n_states: the number of hidden variables, i.e., number of dimension in the Gaussian.
+        :param image_shape: the shape of the input images.
+        """
+
+        super().__init__()
+
+        # Create the deconvolutional network.
+        self.__lin_net = nn.Sequential(
+            nn.Linear(n_states, 256),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Linear(256, 16 * 16 * 64),
+            nn.ReLU(),
+            nn.Dropout()
+        )
+        self.__up_conv_net = nn.Sequential(
+            ConvTranspose2d(64, 64, (3, 3), stride=(1, 1), padding='same'),
+            nn.ReLU(),
+            ConvTranspose2d(64, 64, (3, 3), stride=(2, 2), padding='same'),
+            nn.ReLU(),
+            ConvTranspose2d(64, 32, (3, 3), stride=(2, 2), padding='same'),
+            nn.ReLU(),
+            ConvTranspose2d(32, image_shape[0], (3, 3), stride=(1, 1), padding='same'),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        """
+        Compute the shape parameters of a product of beta distribution.
+        :param x: a hidden state.
+        :return: the shape parameters of a product of beta distribution.
+        """
+        x = self.__lin_net(x)
+        x = torch.reshape(x, (x.shape[0], 64, 16, 16))
         return self.__up_conv_net(x)

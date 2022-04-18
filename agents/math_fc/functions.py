@@ -61,4 +61,4 @@ def reparameterize(mean, log_var):
     """
     nb_states = mean.shape[1]
     epsilon = MultivariateNormal(zeros(nb_states), eye(nb_states)).sample([mean.shape[0]]).to(Device.get())
-    return epsilon * (0.5 * log_var).exp() + mean
+    return epsilon * torch.exp(0.5 * log_var) + mean

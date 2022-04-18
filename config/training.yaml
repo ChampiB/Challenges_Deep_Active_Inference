@@ -1,6 +1,6 @@
 defaults:
   - env: dSprites
-  - agent: Critic
+  - agent: DAIMC
   - _self_
 
 checkpoint:

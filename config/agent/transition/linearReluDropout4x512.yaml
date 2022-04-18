@@ -1,0 +1,4 @@
+_target_: agents.dgn_networks.TransitionNetworks.LinearReluDropout4x512
+
+n_states: ${agent.n_states}
+n_actions: ${env.n_actions}
