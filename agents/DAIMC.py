@@ -262,6 +262,8 @@ class DAIMC:
 
         # Perform one step of gradient descent on the critic network.
         self.critic_optimizer.zero_grad()
+        print("critic_loss:")
+        print(kl_pi)
         kl_pi.backward()
         self.critic_optimizer.step()
 
@@ -274,6 +276,8 @@ class DAIMC:
 
         # Perform one step of gradient descent on the transition network.
         self.transition_optimizer.zero_grad()
+        print("transition_loss:")
+        print(kl_s)
         kl_s.backward()
         self.transition_optimizer.step()
 
@@ -281,6 +285,8 @@ class DAIMC:
         vfe = self.compute_vae_loss(config, o1, ps1_mean, ps1_logvar, omega)
 
         # Perform one step of gradient descent on the encoder and decoder network.
+        print("vae_loss:")
+        print(vfe)
         self.vae_optimizer.zero_grad()
         vfe.backward()
         self.vae_optimizer.step()
@@ -294,7 +300,9 @@ class DAIMC:
         """
         # Calculate current mean and log variance of the distribution over s_t, and sample
         # a state from this distribution.
-        s0, _ = self.encoder(o0)
+        # TODO print("efe encoder input o0:")
+        # TODO print(o0)
+        s0, _ = self.encoder(o0)  # TODO why is this returning NAN
 
         # Create one-hot encoding of all available actions.
         n_samples = s0.shape[0]
@@ -321,24 +329,52 @@ class DAIMC:
         ps1_logvar = torch.zeros([s0.shape[0]], device=Device.get())
 
         for _ in range(self.efe_n_samples):
+            # TODOprint("efe transition input s0:")
+            # TODOprint(s0)
+            # TODO print("efe transition input pi0:")
+            # TODO print(pi0)
             ps1_mean, ps1_logvar = self.transition(s0, pi0)
+            # TODO print("efe decoder input ps1_mean:")
+            # TODO print(ps1_mean)
+            # TODO print("efe decoder input  ps1_logvar:")
+            # TODO print(ps1_logvar)
             ps1 = mathfc.reparameterize(ps1_mean, ps1_logvar)
-            po1 = self.decoder(ps1).sigmoid()
+            # TODO print("efe decoder input ps1:")
+            # TODO print(ps1)
+            po1 = self.decoder(ps1)
+            # TODO print("efe decoded po1:")
+            # TODO print(po1)
+            po1 = po1.sigmoid()
+            # TODO print("efe decoded po1 after sigmoid:")
+            # TODO print(po1)
             _, qs1_logvar = self.encoder(po1)
 
             efe -= self.compute_reward(po1)  # E[log P(o|pi)]
+            # TODO print("efe 1:")
+            # TODO print(efe)
             efe += torch.sum(self.entropy_normal(ps1_logvar), dim=1)  # E[log Q(s|pi)]
+            # TODO print("efe 2:")
+            # TODO print(efe)
             efe -= torch.sum(self.entropy_normal(qs1_logvar), dim=1)  # -E[log Q(s|o,pi)]
+            # TODO print("efe 3:")
+            # TODO print(efe)
 
         for _ in range(self.efe_n_samples):
             # Term 2.1: Sampling different thetas, i.e. sampling different ps_mean/logvar with dropout!
             mean, log_var = self.transition(s0, pi0)
             po1 = self.decoder(mathfc.reparameterize(mean, log_var)).sigmoid()
             efe += torch.sum(self.entropy_bernoulli(po1), dim=[1, 2, 3])
+            # TODO print("efe 4:")
+            # TODO print(efe)
 
             # Term 2.2: Sampling different s with the same theta, i.e. just the reparametrization trick!
             po1 = self.decoder(mathfc.reparameterize(ps1_mean, ps1_logvar)).sigmoid()
             efe -= torch.sum(self.entropy_bernoulli(po1), dim=[1, 2, 3])
+            # TODO print("efe 5:")
+            # TODO print(efe)
+
+        # TODO print("efe final:")
+        # TODO print(efe)
 
         return efe / float(self.efe_n_samples), ps1_mean
 
@@ -384,7 +420,7 @@ class DAIMC:
         :return: the softmax and log softmax of the input.
         """
         x = x.reshape(-1, n_elem)
-        x = x - x.max(dim=1)[0].reshape(-1, 1)  # Normalization
+        x = x - x.max(dim=1)[0].reshape(-1, 1)
         e_x = torch.exp(x / temperature)
         e_x_sum = e_x.sum(dim=1).reshape(-1, 1)
         return e_x / e_x_sum, x - torch.log(e_x_sum + eps)
@@ -399,6 +435,12 @@ class DAIMC:
         perfect_reward = torch.zeros((3, resolution, 1), device=Device.get())
         perfect_reward[:, :int(resolution / 2)] = 1.0
         reward = self.log_bernoulli(o[:, 0:3, 0:resolution, :], perfect_reward)
+        # TODO print("perfect rewards:")
+        # TODO print(perfect_reward)
+        # TODO print("obs rewards:")
+        # TODO print(o[:, 0:3, 0:resolution, :])
+        # TODO print("mean reward:")
+        # TODO print(torch.mean(reward, dim=[1, 2, 3]) * 10.0)
         return torch.mean(reward, dim=[1, 2, 3]) * 10.0
 
     def compute_omega(self, kl_pi):
@@ -485,16 +527,29 @@ class DAIMC:
 
         # Compute E[log P(o1|s1)] where the expectation is with respect to Q(s1).
         logpo1_s1 = mathfc.log_bernoulli_with_logits(o1, po1)
+        print("accuracy:")
+        print(logpo1_s1)
 
         # Compute kl[Q(s1)||N(s1;0,I)] where:
         #  - Q(s1) is the posterior over the states at time t+1
         #  - N(s1;0,I) is a naive Gaussian prior over the states at time t+1
-        kl_s_naive = mathfc.kl_div_gaussian(qs1_mean, qs1_logvar, 0.0, -omega.log())
+
+        kl_s_naive = mathfc.kl_div_gaussian(
+            qs1_mean, qs1_logvar, torch.zeros_like(qs1_mean), torch.zeros_like(qs1_logvar)
+        )
+        print("kl_s_naive:")
+        print(kl_s_naive)
+
+        # TODO Tell fountas?
+        # TODO kl_s_naive = mathfc.kl_div_gaussian(qs1_mean, qs1_logvar, 0.0, -omega.log())
 
         # Compute KL[Q(s1)||P(s1|s0,pi)] where:
         #  - Q(s1) is the posterior over the states at time t+1
         #  - P(s1|s0,pi) is the prior over the states at time t+1
+        print("before kl_s!")
         kl_s = mathfc.kl_div_gaussian(qs1_mean, qs1_logvar, ps1_mean, ps1_logvar - omega.log())
+        print("afterkl_s:")
+        print(kl_s)
 
         # Compute the variational free energy.
         vfe = - self.beta_o * logpo1_s1 + \

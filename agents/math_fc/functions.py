@@ -16,7 +16,7 @@ def entropy_gaussian(log_var, sum_dims=None):
     return log_var.size()[1] * 0.5 * ln2pie + 0.5 * log_var.sum(sum_dims)
 
 
-def kl_div_gaussian(mean, log_var, mean_hat, log_var_hat, sum_dims=None):
+def kl_div_gaussian(mean, log_var, mean_hat, log_var_hat, sum_dims=None, displacement=0.00001):
     """
     Compute the KL-divergence between two Gaussian distributions
     :param mean: the mean of the first Gaussian distribution
@@ -24,10 +24,17 @@ def kl_div_gaussian(mean, log_var, mean_hat, log_var_hat, sum_dims=None):
     :param mean_hat: the mean of the second Gaussian distribution
     :param log_var_hat: the logarithm of variance of the second Gaussian distribution
     :param sum_dims: the dimensions along which to sum over before to return, by default all of them
+    :param displacement: small value to avoid dividing by zero.
     :return: the KL-divergence between the two Gaussian distributions
     """
     var = log_var.exp()
     var_hat = log_var_hat.exp()
+    print("log_var_hat:")
+    print(log_var_hat)
+    print("var_hat:")
+    print(var_hat)
+    print("var:")
+    print(var)
     kl_div = log_var - log_var_hat + (mean_hat - mean) ** 2 / var
     kl_div += var_hat / var
 

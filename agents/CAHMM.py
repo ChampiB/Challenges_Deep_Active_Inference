@@ -399,11 +399,7 @@ class CAHMM:
         :param states: the input state that needs to be decoded.
         :return: the decoded images.
         """
-        # TODO epsilon = 0.1
-        image = self.decoder(states).exp()  # TODO Sigmoid
-        return torch.clamp(image, min=0, max=1)
-        # TODO image = torch.where(image < epsilon, torch.zeros_like(image), image)
-        # TODO return torch.where(image > 1 - epsilon, torch.ones_like(image), image)
+        return self.decoder(states).sigmoid()
 
     def synchronize_target(self):
         """
