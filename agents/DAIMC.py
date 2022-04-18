@@ -301,7 +301,7 @@ class DAIMC:
         a0 = torch.tensor([int(i * self.n_actions / n_samples) for i in range(0, n_samples)])
 
         # Compute the EFE cumulated after 'steps' number of steps.
-        sum_efe = torch.zeros([o0.shape[0]])
+        sum_efe = torch.zeros([o0.shape[0]], device=Device.get())
         for t in range(self.efe_deepness):
             efe, s0 = self.calculate_efe(s0, a0)
             sum_efe += efe
@@ -316,9 +316,10 @@ class DAIMC:
         :return: the EFE.
         """
         # Compute the EFE.
-        efe = torch.zeros([s0.shape[0]])
-        ps1_mean = torch.zeros([s0.shape[0]])
-        ps1_logvar = torch.zeros([s0.shape[0]])
+        efe = torch.zeros([s0.shape[0]], device=Device.get())
+        ps1_mean = torch.zeros([s0.shape[0]], device=Device.get())
+        ps1_logvar = torch.zeros([s0.shape[0]], device=Device.get())
+
         for _ in range(self.efe_n_samples):
             ps1_mean, ps1_logvar = self.transition(s0, pi0)
             ps1 = mathfc.reparameterize(ps1_mean, ps1_logvar)
@@ -395,7 +396,7 @@ class DAIMC:
         :return: the reward.
         """
         resolution = o.shape[2]
-        perfect_reward = torch.zeros((3, resolution, 1))
+        perfect_reward = torch.zeros((3, resolution, 1), device=Device.get())
         perfect_reward[:, :int(resolution / 2)] = 1.0
         reward = self.log_bernoulli(o[:, 0:3, 0:resolution, :], perfect_reward)
         return torch.mean(reward, dim=[1, 2, 3]) * 10.0
