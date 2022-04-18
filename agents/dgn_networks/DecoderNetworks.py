@@ -146,7 +146,6 @@ class ConvDecoderDAIMC(nn.Module):
             ConvTranspose2d(64, 32, (3, 3), stride=(2, 2), padding='same'),
             nn.ReLU(),
             ConvTranspose2d(32, image_shape[0], (3, 3), stride=(1, 1), padding='same'),
-            nn.Sigmoid()
         )
 
     def forward(self, x):
