@@ -298,7 +298,7 @@ class DAIMC:
 
         # Create one-hot encoding of all available actions.
         n_samples = s0.shape[0]
-        a0 = torch.tensor([int(i * self.n_actions / n_samples) for i in range(0, n_samples)])
+        a0 = torch.tensor([int(i * self.n_actions / n_samples) for i in range(0, n_samples)], device=Device.get())
 
         # Compute the EFE cumulated after 'steps' number of steps.
         sum_efe = torch.zeros([o0.shape[0]], device=Device.get())
