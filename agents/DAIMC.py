@@ -323,7 +323,7 @@ class DAIMC:
         for _ in range(self.efe_n_samples):
             ps1_mean, ps1_logvar = self.transition(s0, pi0)
             ps1 = mathfc.reparameterize(ps1_mean, ps1_logvar)
-            po1 = self.decoder(ps1)
+            po1 = self.decoder(ps1).sigmoid()
             _, qs1_logvar = self.encoder(po1)
 
             efe -= self.compute_reward(po1)  # E[log P(o|pi)]
@@ -333,11 +333,11 @@ class DAIMC:
         for _ in range(self.efe_n_samples):
             # Term 2.1: Sampling different thetas, i.e. sampling different ps_mean/logvar with dropout!
             mean, log_var = self.transition(s0, pi0)
-            po1 = self.decoder(mathfc.reparameterize(mean, log_var))
+            po1 = self.decoder(mathfc.reparameterize(mean, log_var)).sigmoid()
             efe += torch.sum(self.entropy_bernoulli(po1), dim=[1, 2, 3])
 
             # Term 2.2: Sampling different s with the same theta, i.e. just the reparametrization trick!
-            po1 = self.decoder(mathfc.reparameterize(ps1_mean, ps1_logvar))
+            po1 = self.decoder(mathfc.reparameterize(ps1_mean, ps1_logvar)).sigmoid()
             efe -= torch.sum(self.entropy_bernoulli(po1), dim=[1, 2, 3])
 
         return efe / float(self.efe_n_samples), ps1_mean
@@ -481,7 +481,7 @@ class DAIMC:
 
         # Sample from Q(s1) and generate the corresponding image.
         qs1 = mathfc.reparameterize(qs1_mean, qs1_logvar)
-        po1 = self.decoder(qs1)  # TODO check activation function of decoder
+        po1 = self.decoder(qs1)
 
         # Compute E[log P(o1|s1)] where the expectation is with respect to Q(s1).
         logpo1_s1 = mathfc.log_bernoulli_with_logits(o1, po1)
