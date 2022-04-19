@@ -365,7 +365,7 @@ class DGN:
         mean_hat, log_var_hat = self.encoder(next_obs)
 
         # Compute the expected free energy at time t.
-        efe_time_t = - rewards + self.kl_div_gaussian(mean, log_var, mean_hat, log_var_hat, sum_dims=1)
+        efe_time_t = - rewards + self.kl_div_gaussian(mean_hat, log_var_hat, mean, log_var, sum_dims=1)
         self.debug["immediate_efe"] = efe_time_t.to(torch.float32)
 
         # Compute the future expected free energy.

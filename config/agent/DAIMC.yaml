@@ -11,13 +11,13 @@ _target_: agents.DAIMC.DAIMC
 # Learning rates
 lr_critic: 1e-04
 lr_transition: 1e-04
-lr_vae: 0.001
+lr_vae: 1e-04
 
 # Omega parameter for top-down attention
-a: 1.0
+a: -1.0
 b: 25.0
-c: 5.0
-d: 1.5
+c: -5.0
+d: 2.5
 
 # Gamma parameter:
 #  VFE = - ln P(o|s) +      gamma  * KL[Q(s)||P(s|s,a)]

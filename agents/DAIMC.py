@@ -176,6 +176,7 @@ class DAIMC:
         """
         # Retrieve the initial observation from the environment.
         obs = env.reset()
+        obs = self.encode_reward_to_image(obs, 0.0)
 
         # Render the environment (if needed).
         if config["display_gui"]:
@@ -184,6 +185,10 @@ class DAIMC:
         # Train the agent.
         Logger.get().info("Start the training at {time}".format(time=datetime.now()))
         while self.steps_done < config["n_training_steps"]:
+
+            # Update the gamma parameter
+            if self.steps_done > self.gamma_delay and self.gamma < self.gamma_max:
+                self.gamma += self.gamma_rate
 
             # Select an action.
             action = self.step(obs, config)
@@ -214,6 +219,7 @@ class DAIMC:
             # Reset the environment when a trial ends.
             if done:
                 obs = env.reset()
+                obs = self.encode_reward_to_image(obs, 0.0)
 
             # Increase the number of steps done.
             self.steps_done += 1
@@ -233,9 +239,11 @@ class DAIMC:
         w = obs.shape[1]
         half_w = int(w / 2)
         if 0.0 <= reward <= 1.0:
-            obs[0:3, 0:half_w] = reward
+            obs[:, 0:3, 0:half_w] = reward
+            obs[:, 0:3, half_w:w] = 0.0
         elif -1.0 <= reward < 0.0:
-            obs[0:3, half_w:w] = -reward
+            obs[:, 0:3, 0:half_w] = 0.0
+            obs[:, 0:3, half_w:w] = -reward
         else:
             exit('Reward must be between zero and one but got: ' + str(reward))
         return obs
@@ -258,12 +266,10 @@ class DAIMC:
         # Compute the critic's loss.
         mean, logvar = self.encoder(o0)
         s0 = math_fc.reparameterize(mean, logvar)
-        kl_pi = self.compute_critic_loss(s0, log_pi)
+        kl_pi = self.compute_critic_loss(s0, log_pi)  # TODO check
 
         # Perform one step of gradient descent on the critic network.
         self.critic_optimizer.zero_grad()
-        print("critic_loss:")
-        print(kl_pi)
         kl_pi.backward()
         self.critic_optimizer.step()
 
@@ -272,21 +278,18 @@ class DAIMC:
 
         # Train transition network.
         qs1_mean, qs1_logvar = self.encoder(o1)
+        # TODO check below
         kl_s, ps1_mean, ps1_logvar = self.compute_transition_loss(s0, qs1_mean, qs1_logvar, pi0, omega)
 
         # Perform one step of gradient descent on the transition network.
         self.transition_optimizer.zero_grad()
-        print("transition_loss:")
-        print(kl_s)
         kl_s.backward()
         self.transition_optimizer.step()
 
         # Train encoder and decoder networks.
-        vfe = self.compute_vae_loss(config, o1, ps1_mean, ps1_logvar, omega)
+        vfe = self.compute_vae_loss(config, o1, ps1_mean, ps1_logvar, omega)  # TODO check
 
         # Perform one step of gradient descent on the encoder and decoder network.
-        print("vae_loss:")
-        print(vfe)
         self.vae_optimizer.zero_grad()
         vfe.backward()
         self.vae_optimizer.step()
@@ -300,16 +303,14 @@ class DAIMC:
         """
         # Calculate current mean and log variance of the distribution over s_t, and sample
         # a state from this distribution.
-        # TODO print("efe encoder input o0:")
-        # TODO print(o0)
-        s0, _ = self.encoder(o0)  # TODO why is this returning NAN
+        s0, _ = self.encoder(o0)
 
         # Create one-hot encoding of all available actions.
         n_samples = s0.shape[0]
         a0 = torch.tensor([int(i * self.n_actions / n_samples) for i in range(0, n_samples)], device=Device.get())
 
         # Compute the EFE cumulated after 'steps' number of steps.
-        sum_efe = torch.zeros([o0.shape[0]], device=Device.get())
+        sum_efe = torch.zeros([n_samples], device=Device.get())
         for t in range(self.efe_deepness):
             efe, s0 = self.calculate_efe(s0, a0)
             sum_efe += efe
@@ -329,52 +330,24 @@ class DAIMC:
         ps1_logvar = torch.zeros([s0.shape[0]], device=Device.get())
 
         for _ in range(self.efe_n_samples):
-            # TODOprint("efe transition input s0:")
-            # TODOprint(s0)
-            # TODO print("efe transition input pi0:")
-            # TODO print(pi0)
             ps1_mean, ps1_logvar = self.transition(s0, pi0)
-            # TODO print("efe decoder input ps1_mean:")
-            # TODO print(ps1_mean)
-            # TODO print("efe decoder input  ps1_logvar:")
-            # TODO print(ps1_logvar)
             ps1 = mathfc.reparameterize(ps1_mean, ps1_logvar)
-            # TODO print("efe decoder input ps1:")
-            # TODO print(ps1)
-            po1 = self.decoder(ps1)
-            # TODO print("efe decoded po1:")
-            # TODO print(po1)
-            po1 = po1.sigmoid()
-            # TODO print("efe decoded po1 after sigmoid:")
-            # TODO print(po1)
+            po1 = self.decoder(ps1).sigmoid()
             _, qs1_logvar = self.encoder(po1)
 
-            efe -= self.compute_reward(po1)  # E[log P(o|pi)]
-            # TODO print("efe 1:")
-            # TODO print(efe)
+            efe -= self.compute_reward(po1)  # -E[log P(o|pi)]
             efe += torch.sum(self.entropy_normal(ps1_logvar), dim=1)  # E[log Q(s|pi)]
-            # TODO print("efe 2:")
-            # TODO print(efe)
             efe -= torch.sum(self.entropy_normal(qs1_logvar), dim=1)  # -E[log Q(s|o,pi)]
-            # TODO print("efe 3:")
-            # TODO print(efe)
 
         for _ in range(self.efe_n_samples):
             # Term 2.1: Sampling different thetas, i.e. sampling different ps_mean/logvar with dropout!
             mean, log_var = self.transition(s0, pi0)
             po1 = self.decoder(mathfc.reparameterize(mean, log_var)).sigmoid()
             efe += torch.sum(self.entropy_bernoulli(po1), dim=[1, 2, 3])
-            # TODO print("efe 4:")
-            # TODO print(efe)
 
             # Term 2.2: Sampling different s with the same theta, i.e. just the reparametrization trick!
             po1 = self.decoder(mathfc.reparameterize(ps1_mean, ps1_logvar)).sigmoid()
             efe -= torch.sum(self.entropy_bernoulli(po1), dim=[1, 2, 3])
-            # TODO print("efe 5:")
-            # TODO print(efe)
-
-        # TODO print("efe final:")
-        # TODO print(efe)
 
         return efe / float(self.efe_n_samples), ps1_mean
 
@@ -385,29 +358,29 @@ class DAIMC:
         :param logvar: the logarithm variance of the distribution.
         :return: the entropy.
         """
-        log_2_pi_e = 1.23247435026
+        log_2_pi_e = 2.8378770664093453
         return 0.5 * (log_2_pi_e + logvar)
 
     @staticmethod
-    def entropy_bernoulli(p, displacement=0.00001):
+    def entropy_bernoulli(p, shift=0.00001):
         """
         The entropy of a Bernouilli distribution.
         :param p: the parameters of the distribution.
-        :param displacement: small value to avoid taking the logarithm of zero.
+        :param shift: small value to avoid taking the logarithm of zero.
         :return: the entropy.
         """
-        return - (1 - p) * torch.log(displacement + 1 - p) - p * torch.log(displacement + p)
+        return - (1 - p) * torch.log(shift + 1 - p) - p * torch.log(shift + p)
 
     @staticmethod
-    def log_bernoulli(x, p, displacement=0.00001):
+    def log_bernoulli(x, p, shift=0.00001):
         """
         Compute the log probability of x assuming a Bernoulli distribution with parameter p.
         :param x: the value of the input random variable.
         :param p: the parameters of the Bernoulli distribution.
-        :param displacement: small value to avoid taking the logarithm of zero.
+        :param shift: small value to avoid taking the logarithm of zero.
         :return: the log probability of x assuming a Bernoulli distribution.
         """
-        return x * torch.log(displacement + p) + (1 - x) * torch.log(displacement + 1 - p)
+        return x * torch.log(shift + p) + (1 - x) * torch.log(shift + 1 - p)
 
     @staticmethod
     def softmax_with_log(x, n_elem=4, eps=1e-20, temperature=10.0):
@@ -432,15 +405,9 @@ class DAIMC:
         :return: the reward.
         """
         resolution = o.shape[2]
-        perfect_reward = torch.zeros((3, resolution, 1), device=Device.get())
-        perfect_reward[:, :int(resolution / 2)] = 1.0
-        reward = self.log_bernoulli(o[:, 0:3, 0:resolution, :], perfect_reward)
-        # TODO print("perfect rewards:")
-        # TODO print(perfect_reward)
-        # TODO print("obs rewards:")
-        # TODO print(o[:, 0:3, 0:resolution, :])
-        # TODO print("mean reward:")
-        # TODO print(torch.mean(reward, dim=[1, 2, 3]) * 10.0)
+        perfect_reward = torch.zeros((o.shape[0], 1, 3, resolution), device=Device.get())
+        perfect_reward[:, :, :, 0:int(resolution / 2)] = 1.0
+        reward = self.log_bernoulli(o[:, :, 0:3, 0:resolution], perfect_reward)
         return torch.mean(reward, dim=[1, 2, 3]) * 10.0
 
     def compute_omega(self, kl_pi):
@@ -463,8 +430,7 @@ class DAIMC:
         log_p_pi = log_p_pi.detach()
 
         # Compute the posterior probability of each action
-        logit_pi = self.critic(s)
-        q_pi = torch.softmax(logit_pi, dim=1)
+        q_pi = torch.softmax(self.critic(s), dim=1)
 
         # Compute the logarithm of the posterior probability of each action
         log_q_pi = q_pi.log()
@@ -527,29 +493,18 @@ class DAIMC:
 
         # Compute E[log P(o1|s1)] where the expectation is with respect to Q(s1).
         logpo1_s1 = mathfc.log_bernoulli_with_logits(o1, po1)
-        print("accuracy:")
-        print(logpo1_s1)
 
         # Compute kl[Q(s1)||N(s1;0,I)] where:
         #  - Q(s1) is the posterior over the states at time t+1
         #  - N(s1;0,I) is a naive Gaussian prior over the states at time t+1
-
         kl_s_naive = mathfc.kl_div_gaussian(
             qs1_mean, qs1_logvar, torch.zeros_like(qs1_mean), torch.zeros_like(qs1_logvar)
         )
-        print("kl_s_naive:")
-        print(kl_s_naive)
-
-        # TODO Tell fountas?
-        # TODO kl_s_naive = mathfc.kl_div_gaussian(qs1_mean, qs1_logvar, 0.0, -omega.log())
 
         # Compute KL[Q(s1)||P(s1|s0,pi)] where:
         #  - Q(s1) is the posterior over the states at time t+1
         #  - P(s1|s0,pi) is the prior over the states at time t+1
-        print("before kl_s!")
         kl_s = mathfc.kl_div_gaussian(qs1_mean, qs1_logvar, ps1_mean, ps1_logvar - omega.log())
-        print("afterkl_s:")
-        print(kl_s)
 
         # Compute the variational free energy.
         vfe = - self.beta_o * logpo1_s1 + \

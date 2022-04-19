@@ -177,7 +177,7 @@ class HMM:
         alpha = self.decoder(next_state)
 
         # Compute the variational free energy.
-        kl_div_hs = mathfc.kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
+        kl_div_hs = mathfc.kl_div_gaussian(mean, log_var, mean_hat, log_var_hat)
         log_likelihood = mathfc.log_bernoulli_with_logits(next_obs, alpha)
         vfe_loss = self.beta * kl_div_hs - log_likelihood
 
