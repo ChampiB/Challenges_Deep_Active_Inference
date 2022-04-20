@@ -1,9 +1,6 @@
 import tkinter as tk
-from tkinter import ttk
-from PIL import Image, ImageTk
-import numpy as np
-import torch
 from analysis.widgets.ClickableImage import ClickableImage
+from analysis.widgets.dSpritesImageSelector import dSpritesImageSelector
 
 
 #
@@ -66,74 +63,9 @@ class DatasetFrame(tk.Frame):
         # Create separation between left and right side of the frame
         self.grid_columnconfigure(self.width+1, minsize=100)
 
-        # Add combobox to select specific shape
-        self.label_shape = tk.Label(self, text="Shape:")
-        self.label_shape.grid(row=self.height+1, column=self.width+2, sticky=tk.NSEW)
-
-        self.selected_shape = tk.StringVar()
-        self.shape_cb = ttk.Combobox(self, textvariable=self.selected_shape, state='readonly', width=10)
-        self.shape_cb['values'] = ["square", "ellipse", "heart"]
-        self.shape_cb.current(0)
-        self.shape_cb.grid(row=self.height+2, column=self.width+2, sticky=tk.NSEW)
-        self.shape_cb.bind("<<ComboboxSelected>>", self.refresh_target_image)
-
-        # Add combobox to select specific scale
-        self.label_scale = tk.Label(self, text="Scale:")
-        self.label_scale.grid(row=self.height+1, column=self.width+3, sticky=tk.NSEW)
-
-        self.selected_scale = tk.StringVar()
-        self.scale_cb = ttk.Combobox(self, textvariable=self.selected_scale, state='readonly', width=10)
-        self.scale_cb['values'] = [str(i) for i in range(0, 6)]
-        self.scale_cb.current(0)
-        self.scale_cb.grid(row=self.height+2, column=self.width+3, sticky=tk.NSEW)
-        self.scale_cb.bind("<<ComboboxSelected>>", self.refresh_target_image)
-
-        # Add combobox to select specific orientation
-        self.label_orientation = tk.Label(self, text="Orientation:")
-        self.label_orientation.grid(row=self.height+1, column=self.width+4, sticky=tk.NSEW)
-
-        self.selected_orientation = tk.StringVar()
-        self.orientation_cb = ttk.Combobox(self, textvariable=self.selected_orientation, state='readonly', width=10)
-        self.orientation_cb['values'] = [str(i) for i in range(0, 40)]
-        self.orientation_cb.current(0)
-        self.orientation_cb.grid(row=self.height+2, column=self.width+4, sticky=tk.NSEW)
-        self.orientation_cb.bind("<<ComboboxSelected>>", self.refresh_target_image)
-
-        # Add combobox to select specific x position
-        self.label_x_pos = tk.Label(self, text="X position:")
-        self.label_x_pos.grid(row=self.height+1, column=self.width+5, sticky=tk.NSEW)
-
-        self.selected_x_pos = tk.StringVar()
-        self.x_pos_cb = ttk.Combobox(self, textvariable=self.selected_x_pos, state='readonly', width=10)
-        self.x_pos_cb['values'] = [str(i) for i in range(0, 32)]
-        self.x_pos_cb.current(0)
-        self.x_pos_cb.grid(row=self.height+2, column=self.width+5, sticky=tk.NSEW)
-        self.x_pos_cb.bind("<<ComboboxSelected>>", self.refresh_target_image)
-
-        # Add combobox to select specific y position
-        self.label_y_pos = tk.Label(self, text="Y position:")
-        self.label_y_pos.grid(row=self.height+1, column=self.width+6, sticky=tk.NSEW)
-
-        self.selected_y_pos = tk.StringVar()
-        self.y_pos_cb = ttk.Combobox(self, textvariable=self.selected_y_pos, state='readonly', width=10)
-        self.y_pos_cb['values'] = [str(i) for i in range(0, 32)]
-        self.y_pos_cb.current(0)
-        self.y_pos_cb.grid(row=self.height+2, column=self.width+6, sticky=tk.NSEW)
-        self.y_pos_cb.bind("<<ComboboxSelected>>", self.refresh_target_image)
-
-        # Add button to select add target image
-        self.load_button_2 = tk.Button(
-            self, text='add', height=2, bg=self.gui.white, width=10,
-            command=self.add_target_image_to_sample
-        )
-        self.load_button_2.grid(row=self.height+2, column=self.width+7, sticky=tk.NSEW)
-
-        # Add preview image of the targeted image
-        self.target_image = torch.zeros([64, 64]).numpy()
-        self.target_image = ImageTk.PhotoImage(image=Image.fromarray(self.target_image))
-
-        self.target_image_label = tk.Label(self, image=self.target_image)
-        self.target_image_label.grid(row=self.height-1, column=self.width+4, sticky=tk.NSEW)
+        # Create the image selector.
+        self.image_selector = dSpritesImageSelector(self, gui, self.add_target_image_to_sample)
+        self.image_selector.grid(row=int(self.height/2), column=self.width+2, rowspan=2)
 
     def display_previous_images(self):
         """
@@ -161,66 +93,19 @@ class DatasetFrame(tk.Frame):
         Add the target image to the sample.
         :return: nothing.
         """
-        images = self.get_images_from_dataset([self.get_index_of_target_image()])
-        self.gui.add_sample((images[0], torch.from_numpy(self.get_state())))
-
-    def get_state(self):
-        # Create latent representation
-        state = np.zeros(6)
-        state[1] = self.shape_cb['values'].index(self.shape_cb.get())
-        state[2] = float(self.scale_cb.get())
-        state[3] = float(self.orientation_cb.get())
-        state[4] = float(self.x_pos_cb.get())
-        state[5] = float(self.y_pos_cb.get())
-        return state
-
-    def get_index_of_target_image(self):
-        """
-        Getter.
-        :return: the index of the target image.
-        """
-        # Retreive image's index and image
-        return np.dot(self.get_state(), self.gui.dataset[3]).astype(int)
-
-    def refresh_target_image(self, event):
-        """
-        Refresh the preview of the targeted image.
-        :param event: the event that triggered the call of this function.
-        :return: nothing.
-        """
-        # Check that dataset is available
-        if self.gui.dataset is None:
-            return
-
-        # Retreive the index of the target image
-        i = self.get_index_of_target_image()
-
-        # Retreive target image
-        image = self.get_images_from_dataset([i])
-        image = np.squeeze(image.numpy() * 255)
-        self.target_image = ImageTk.PhotoImage(image=Image.fromarray(image))
-
-        # Update target image
-        self.target_image_label.configure(image=self.target_image)
-
-    def get_images_from_dataset(self, indices):
-        """
-        Retreive an images from the dataset.
-        :param indices: the indices of the images to be retreived.
-        :return: the retieved images.
-        """
-        images = self.gui.dataset[0][indices]
-        images = np.moveaxis(images, [0, 1, 2, 3], [0, 2, 3, 1])
-        return torch.from_numpy(images).to(torch.float32)
+        images = self.image_selector.get_images_from_dataset(
+            [self.image_selector.get_index_of_target_image()]
+        )
+        self.gui.add_sample((images[0], None))
 
     def add_images_to_sample(self):
         """
         Add the selected images to the sample.
         :return: nothing.
         """
-        images = self.get_images_from_dataset(self.images_to_be_added)
+        images = self.image_selector.get_images_from_dataset(self.images_to_be_added)
         for i in range(0, len(self.images_to_be_added)):
-            self.gui.add_sample((images[i], None))  # TODO add state
+            self.gui.add_sample((images[i], None))
         self.refresh()
 
     def refresh(self):
@@ -241,4 +126,4 @@ class DatasetFrame(tk.Frame):
         self.images_to_be_added = []
 
         # Refresh target image
-        self.refresh_target_image(None)
+        self.image_selector.refresh_target_image(None)

@@ -37,6 +37,11 @@ class dSpritesEnv(gym.Env):
         self.max_episode_length = config["env"]["max_episode_length"]
         self.reset()
 
+        # Store environment difficulty
+        self.difficulty = config["env"]["difficulty"]
+        if self.difficulty != "hard" and self.difficulty != "easy":
+            raise Exception("Invalid difficulty level, must be either 'easy' or 'hard'.")
+
         # Graphical interface
         self.viewer = None
 
@@ -92,7 +97,10 @@ class dSpritesEnv(gym.Env):
         for i in range(self.repeats):
             if action < 0 or action > 3:
                 exit('Invalid action.')
-            if actions_fn[action]():
+            done = actions_fn[action]()
+            if self.difficulty == "easy":
+                self.last_r = self.compute_easy_reward()
+            if done:
                 return self.current_frame(), self.last_r, True, {}
 
         # Make sure the environment is reset if the maximum number of steps in
@@ -163,12 +171,8 @@ class dSpritesEnv(gym.Env):
         if self.y_pos < 32:
             return False
 
-        # If the object crossed the bottom line, then:
-        # compute the reward, generate a new image and return true.
-        if self.state[1] < 0.5:
-            self.last_r = self.compute_square_reward()
-        else:
-            self.last_r = self.compute_non_square_reward()
+        if self.difficulty == "hard":
+            self.last_r = self.compute_hard_reward()
         self.y_pos -= 1.0
         return True
 
@@ -222,6 +226,26 @@ class dSpritesEnv(gym.Env):
             return float(self.x_pos - 15.0) / 16.0
         else:
             return float(self.x_pos - 16.0) / 16.0
+
+    def compute_easy_reward(self):
+        """
+        Compute the reward obtained by the agent if the environment difficulty is easy.
+        :return: the reward.
+        """
+        tx, ty = (0, 31) if self.state[1] < 0.5 else (31, 31)
+        return -1 + (tx - self.x_pos + ty - self.y_pos) / 31
+
+    def compute_hard_reward(self):
+        """
+        Compute the reward obtained by the agent if the environment difficulty is hard.
+        :return: the reward.
+        """
+        # If the object crossed the bottom line, then:
+        # compute the reward, generate a new image and return true.
+        if self.state[1] < 0.5:
+            return self.compute_square_reward()
+        else:
+            return self.compute_non_square_reward()
 
     #
     # Getter and setter.

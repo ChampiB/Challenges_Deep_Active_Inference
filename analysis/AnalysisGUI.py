@@ -8,6 +8,7 @@ from analysis.frames.VisualisationFrame import VisualisationFrame
 from analysis.frames.CriticFrame import CriticFrame
 from analysis.frames.DiscriminatorFrame import DiscriminatorFrame
 from analysis.frames.CriticWithoutEncoderFrame import CriticWithoutEncoderFrame
+from analysis.frames.DisentanglementFrame import DisentanglementFrame
 from analysis.widgets.NavBar import NavBar
 
 
@@ -68,7 +69,8 @@ class AnalysisGUI:
             "DiscriminatorFrame": DiscriminatorFrame,
             "DatasetFrame": DatasetFrame,
             "SampleFrame": SampleFrame,
-            "VisualisationFrame": VisualisationFrame
+            "VisualisationFrame": VisualisationFrame,
+            "DisentanglementFrame": DisentanglementFrame
         }
 
         # The list of currently loaded frames.

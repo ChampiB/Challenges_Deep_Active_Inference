@@ -304,6 +304,8 @@ class DAIMC:
         # Calculate current mean and log variance of the distribution over s_t, and sample
         # a state from this distribution.
         s0, _ = self.encoder(o0)
+        if torch.any(torch.isnan(s0)):
+            print("s0 has nan")
 
         # Create one-hot encoding of all available actions.
         n_samples = s0.shape[0]
@@ -313,6 +315,10 @@ class DAIMC:
         sum_efe = torch.zeros([n_samples], device=Device.get())
         for t in range(self.efe_deepness):
             efe, s0 = self.calculate_efe(s0, a0)
+            if torch.any(torch.isnan(s0)):
+                print("s0 has nan at time {}".format(t))
+            if torch.any(torch.isnan(efe)):
+                print("efe has nan at time {}".format(t))
             sum_efe += efe
 
         return sum_efe

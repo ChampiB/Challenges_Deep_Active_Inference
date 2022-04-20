@@ -47,6 +47,14 @@ class NavBar(tk.Menu):
         else:
             self.add_command(label="Visualisation", command=self.visualisation_cmd)
 
+        # Add the disentanglement tab to the navigation bar.
+        if self.gui.dataset is None:
+            self.add_command(label="Disentanglement", command=self.no_dataset_cmd)
+        elif self.gui.model is None:
+            self.add_command(label="Disentanglement", command=self.no_model_cmd)
+        else:
+            self.add_command(label="Disentanglement", command=self.disentanglement_cmd)
+
     def add_model_cascade(self):
         """
         Add the model cascade to the nagivation bar.
@@ -58,7 +66,7 @@ class NavBar(tk.Menu):
             self.modelbar.add_command(label="Transition", command=self.transition_cmd)
         if self.model_has_attr(['encoder', 'critic']):
             self.modelbar.add_command(label="Critic", command=self.critic_cmd)
-        if not self.model_has_attr('encoder') and self.model_has_attr(['critic']):
+        if not self.model_has_attr(['encoder']) and self.model_has_attr(['critic']):
             self.modelbar.add_command(label="Critic", command=self.critic_without_encoder_cmd)
         if self.model_has_attr(['encoder', 'decoder', 'transition', 'discriminator']):
             self.modelbar.add_command(label="Discriminator", command=self.discriminator_cmd)
@@ -103,6 +111,13 @@ class NavBar(tk.Menu):
         :return: nothing.
         """
         self.gui.show_frame("LoadFrame")
+
+    def disentanglement_cmd(self):
+        """
+        Display page used to disentangle the latent space.
+        :return: nothing.
+        """
+        self.gui.show_frame("DisentanglementFrame")
 
     @staticmethod
     def no_model_cmd():

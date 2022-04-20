@@ -14,18 +14,18 @@ lr_transition: 1e-04
 lr_vae: 1e-04
 
 # Omega parameter for top-down attention
-a: -1.0
+a: 1.0
 b: 25.0
-c: -5.0
-d: 2.5
+c: 5.0
+d: 1.5
 
 # Gamma parameter:
 #  VFE = - ln P(o|s) +      gamma  * KL[Q(s)||P(s|s,a)]
 #                    + (1 - gamma) * KL[Q(s)||N(s;0,1)]
 gamma: 0.0
-gamma_rate: 0.01
+gamma_rate: 1e-05
 gamma_max: 0.8
-gamma_delay: 30
+gamma_delay: 100000000000
 
 # Beta parameters of Beta-VAE:
 #      VAE = beta_o * accuracy + beta_s * complexity

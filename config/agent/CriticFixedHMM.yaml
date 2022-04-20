@@ -1,4 +1,4 @@
-name: critical_hmm
+name: critic_fixed_hmm
 
 defaults:
   - encoder: convolutional64
@@ -6,7 +6,7 @@ defaults:
   - transition: linearRelu3x100
   - critic: linearRelu4x100
 
-_target_: agents.CriticalHMM.CriticalHMM
+_target_: agents.CriticFixedHMM.CriticFixedHMM
 
 # Miscellaneous
 n_states: 10
@@ -15,11 +15,13 @@ efe_lr: 0.001
 discount_factor: 0.95
 n_steps_between_synchro: 10
 queue_capacity: 50000
-tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CriticalHMM_${env.name}_${seed}"
-g_value: "reward"
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CriticFixedHMM_${env.name}_${seed}"
+g_value: "efe"  # values: 'efe' or 'reward'
+action_selection: "best_action"  # values: 'best_action', 'softmax' or 'epsilon_greedy'
+n_actions: ${env.n_actions}
 
 # Beta scheduling
 beta: 1.0
 beta_starting_step: 0
-beta_rate: 0.0
+beta_rate: 0.0000
 n_steps_beta_reset: 10000000000
