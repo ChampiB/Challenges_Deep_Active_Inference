@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import gym
 from gym import spaces
@@ -233,7 +235,7 @@ class dSpritesEnv(gym.Env):
         :return: the reward.
         """
         tx, ty = (0, 31) if self.state[1] < 0.5 else (31, 31)
-        return -1 + (tx - self.x_pos + ty - self.y_pos) / 31
+        return -1.0 + (62 - abs(tx - self.x_pos) - abs(ty - self.y_pos)) / 31.0
 
     def compute_hard_reward(self):
         """
