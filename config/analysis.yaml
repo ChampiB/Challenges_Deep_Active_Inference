@@ -24,4 +24,4 @@ defaults:
 seed: 8
 
 images:
-  shape: ${tuple:1,64,64}
+  shape: ${tuple:3,64,64}

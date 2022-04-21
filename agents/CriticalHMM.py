@@ -1,3 +1,4 @@
+from agents.learning import Optimizers
 from agents.save.Checkpoint import Checkpoint
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
@@ -8,7 +9,6 @@ from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 import agents.math_fc.functions as mathfc
 from singletons.Device import Device
 from torch import nn, unsqueeze
-from torch.optim import Adam
 import torch
 
 
@@ -20,7 +20,8 @@ class CriticalHMM:
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor,
             n_steps_beta_reset, beta, efe_lr, vfe_lr, beta_starting_step, beta_rate,
-            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value, steps_done=0, **_
+            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
+            action_selection, n_actions=4, steps_done=0, **_
     ):
         """
         Constructor
@@ -28,6 +29,8 @@ class CriticalHMM:
         :param decoder: the decoder network
         :param transition: the transition network
         :param critic: the critic network
+        :param action_selection: the action selection to be used
+        :param n_actions: the number of actions
         :param discount_factor: the factor by which the future EFE is discounted.
         :param n_steps_beta_reset: the number of steps after with beta is reset
         :param beta_starting_step: the number of steps after which beta start increasing
@@ -43,12 +46,6 @@ class CriticalHMM:
         :param steps_done: the number of training iterations performed to date.
         """
 
-        # TODO TMP remove
-        self.epsilon_start = 0.9  # The initial value of epsilon (for epsilon-greedy).
-        self.epsilon_end = 0.05  # The final value of epsilon (for epsilon-greedy).
-        self.epsilon_decay = 1000  # How slowly should epsilon decay? The bigger, the slower.
-        self.n_actions = 4
-
         # Neural networks.
         self.encoder = encoder
         self.decoder = decoder
@@ -58,18 +55,11 @@ class CriticalHMM:
         self.target.eval()
 
         # Ensure models are on the right device.
-        self.to_device()
+        Device.send([self.encoder, self.decoder, self.transition, self.critic, self.target])
 
         # Optimizers.
-        vfe_params = \
-            list(encoder.parameters()) + \
-            list(decoder.parameters()) + \
-            list(transition.parameters())
-        self.vfe_optimizer = Adam(vfe_params, lr=vfe_lr)
-
-        efe_params = \
-            list(critic.parameters())
-        self.efe_optimizer = Adam(efe_params, lr=efe_lr)
+        self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
+        self.efe_optimizer = Optimizers.get_adam([critic], efe_lr)
 
         # Beta scheduling.
         self.n_steps_beta_reset = n_steps_beta_reset
@@ -88,25 +78,11 @@ class CriticalHMM:
         self.efe_lr = efe_lr
         self.tensorboard_dir = tensorboard_dir
         self.queue_capacity = queue_capacity
+        self.action_selection = action_selection
+        self.n_actions = n_actions
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
-        self.writer.add_custom_scalars({
-            "Actions": {
-                "acts_prob": ["Multiline", ["acts_prob/down", "acts_prob/up", "acts_prob/left", "acts_prob/right"]],
-            },
-        })
-
-    def to_device(self):
-        """
-        Send the models on the right device, i.e. CPU or GPU.
-        :return: nothins
-        """
-        self.encoder.to(Device.get())
-        self.decoder.to(Device.get())
-        self.transition.to(Device.get())
-        self.critic.to(Device.get())
-        self.target.to(Device.get())
 
     def step(self, obs, config):
         """
@@ -120,34 +96,8 @@ class CriticalHMM:
         obs = torch.unsqueeze(obs, dim=0)
         state, _ = self.encoder(obs)
 
-        # Compute the current epsilon value.
-        # TODO epsilon_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-        # TODO     math.exp(-1. * self.steps_done / self.epsilon_decay)
-
-        # Sample a number between 0 and 1, and either execute a random action or
-        # the reward maximizing action according to the sampled value.
-        # TODO sample = random.random()
-        # TODO if sample > epsilon_threshold:
-        # TODO     with torch.no_grad():
-        # TODO         return self.critic(state).max(1)[1].item()  # Best action.
-        # TODO else:
-        # TODO     return np.random.choice(self.n_actions)  # Random action.
-
-        return self.critic(state).max(1)[1].item()  # Best action.
-
-        # Planning as inference.
-        # TODO actions_prob = softmax(self.critic(state), dim=1)
-
-        # TODO actions_prob = softmax(-self.critic(torch.unsqueeze(obs, dim=0)), dim=1)
-        # TODO if config["enable_tensorboard"]:
-        # TODO     self.writer.add_scalar("acts_prob/down",  actions_prob[0][0], self.steps_done)
-        # TODO     self.writer.add_scalar("acts_prob/up",    actions_prob[0][1], self.steps_done)
-        # TODO     self.writer.add_scalar("acts_prob/left",  actions_prob[0][2], self.steps_done)
-        # TODO     self.writer.add_scalar("acts_prob/right", actions_prob[0][3], self.steps_done)
-        # TODO argmax instead of sampling?
-
-        # Action selection.
-        # TODO return Categorical(actions_prob).sample()
+        # Select an action.
+        return self.action_selection.select(self.critic(state), self.steps_done)
 
     def train(self, env, config):
         """
@@ -364,6 +314,7 @@ class CriticalHMM:
             "tensorboard_dir": self.tensorboard_dir,
             "queue_capacity": self.queue_capacity,
             "n_steps_between_synchro": self.n_steps_between_synchro,
+            "action_selection": dict(self.action_selection),
         }, checkpoint_file)
 
     @staticmethod
@@ -382,6 +333,7 @@ class CriticalHMM:
             "critic": Checkpoint.load_critic(checkpoint, training_mode),
             "vfe_lr": checkpoint["vfe_lr"],
             "efe_lr": checkpoint["efe_lr"],
+            "action_selection": Checkpoint.load_action_selection(checkpoint),
             "beta": checkpoint["beta"],
             "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
             "beta_starting_step": checkpoint["beta_starting_step"],
@@ -392,5 +344,5 @@ class CriticalHMM:
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
             "steps_done": checkpoint["steps_done"],
+            "n_actions": checkpoint["n_actions"]
         }
-

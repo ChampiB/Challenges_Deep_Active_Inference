@@ -1,5 +1,3 @@
-import time
-
 import numpy as np
 import gym
 from gym import spaces
@@ -120,9 +118,9 @@ class dSpritesEnv(gym.Env):
         :return: nothing.
         """
         if self.viewer is None:
-            self.viewer = DefaultViewer('dSprites', self.last_r, self.current_frame())
+            self.viewer = DefaultViewer('dSprites', self.last_r, self.current_frame(), frame_id=self.frame_id)
         else:
-            self.viewer.update(self.last_r, self.current_frame())
+            self.viewer.update(self.last_r, self.current_frame(), self.frame_id)
 
     def s_to_index(self, s):
         """
@@ -221,7 +219,7 @@ class dSpritesEnv(gym.Env):
 
     def compute_non_square_reward(self):
         """
-        Compute the obtained by the agent when a ellipse or heart crosses the bottom wall.
+        Compute the obtained by the agent when an ellipse or heart crosses the bottom wall.
         :return: the reward.
         """
         if self.x_pos > 15:
@@ -257,7 +255,7 @@ class dSpritesEnv(gym.Env):
     def y_pos(self):
         """
         Getter.
-        :return: the current position of the object on the y axis.
+        :return: the current position of the object on the y-axis.
         """
         return self.state[5]
 
@@ -265,7 +263,7 @@ class dSpritesEnv(gym.Env):
     def y_pos(self, new_value):
         """
         Setter.
-        :param new_value: the new position of the object on the y axis.
+        :param new_value: the new position of the object on the y-axis.
         :return: nothing.
         """
         self.state[5] = new_value
@@ -274,7 +272,7 @@ class dSpritesEnv(gym.Env):
     def x_pos(self):
         """
         Getter.
-        :return: the current position of the object on the x axis.
+        :return: the current position of the object on the x-axis.
         """
         return self.state[4]
 
@@ -282,7 +280,7 @@ class dSpritesEnv(gym.Env):
     def x_pos(self, new_value):
         """
         Setter.
-        :param new_value: the new position of the object on the x axis.
+        :param new_value: the new position of the object on the x-axis.
         :return: nothing.
         """
         self.state[4] = new_value

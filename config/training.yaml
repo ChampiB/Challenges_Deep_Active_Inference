@@ -15,5 +15,5 @@ enable_tensorboard: true
 n_training_steps: 500000
 buffer_start_size: 50
 batch_size: 10
-seed: 950
+seed: 95003
 nb_envs: 5

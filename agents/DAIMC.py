@@ -5,8 +5,7 @@ from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 from singletons.Device import Device
-from torch.distributions.categorical import Categorical
-from torch.optim import Adam
+from agents.learning import Optimizers
 import agents.math_fc.functions as mathfc
 import torch
 
@@ -21,13 +20,14 @@ import torch
 class DAIMC:
 
     def __init__(
-            self, encoder, decoder, transition, critic, n_states, n_actions,
+            self, encoder, decoder, transition, critic, n_states,
             lr_critic, lr_transition, lr_vae,
             a, b, c, d,
             gamma, gamma_rate, gamma_max, gamma_delay,
             beta_s, beta_o,
             efe_deepness, efe_n_samples,
-            queue_capacity, tensorboard_dir, steps_done=0, **_
+            queue_capacity, tensorboard_dir,
+            action_selection, n_actions, steps_done=0, **_
     ):
         """
         Constructor
@@ -53,6 +53,7 @@ class DAIMC:
         :param efe_deepness: the number of steps for which the EFE is computed
         :param efe_n_samples: the number of samples in the Monte-Carlo estimate of the EFE
         :param queue_capacity: the maximum capacity of the queue
+        :param action_selection: the action selection to be used
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param steps_done: the number of training iterations performed to date.
         """
@@ -64,7 +65,7 @@ class DAIMC:
         self.critic = critic
 
         # Ensure the neural networks are on the right device.
-        self.to_device()
+        Device.send([self.encoder, self.decoder, self.transition, self.critic])
 
         # Store learning rates.
         self.lr_critic = lr_critic
@@ -88,11 +89,9 @@ class DAIMC:
         self.beta_o = beta_o
 
         # Initialize the optimizers.
-        self.critic_optimizer, self.transition_optimizer, self.vae_optimizer = \
-            self.get_optimizers(
-                self.encoder, self.decoder, self.transition, self.critic,
-                self.lr_critic, self.lr_transition, self.lr_vae
-            )
+        self.vae_optimizer = Optimizers.get_adam([encoder, decoder], lr_vae)
+        self.transition_optimizer = Optimizers.get_adam([transition], lr_transition)
+        self.critic_optimizer = Optimizers.get_adam([critic], lr_critic)
 
         # Store the number of states and actions and the list of all possible actions.
         self.n_states = n_states
@@ -107,48 +106,10 @@ class DAIMC:
         self.tensorboard_dir = tensorboard_dir
         self.efe_deepness = efe_deepness
         self.efe_n_samples = efe_n_samples
+        self.action_selection = action_selection
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
-
-    @staticmethod
-    def get_optimizers(encoder, decoder, transition, critic, lr_critic, lr_transition, lr_vae):
-        """
-        Build the optimizers used to train the neural networks of the model.
-        :param encoder: the encoder network.
-        :param decoder: the decoder network.
-        :param transition: the transition network.
-        :param critic: the critic network.
-        :param lr_critic: the learning rate of the critic network
-        :param lr_transition: the learning rate of the transition network
-        :param lr_vae: the learning rate of the encoder and decoder networks
-        :return: the optimizers of the VAE, transition and critic.
-        """
-        # Create the optimizer for the encoder and decoder networks.
-        vae_params = \
-            list(encoder.parameters()) + \
-            list(decoder.parameters())
-        vae_optimizer = Adam(vae_params, lr=lr_vae)
-
-        # Create the optimizer for the transition network.
-        transition_params = list(transition.parameters())
-        transition_optimizer = Adam(transition_params, lr=lr_transition)
-
-        # Create the optimizer for the critic network.
-        critic_params = list(critic.parameters())
-        critic_optimizer = Adam(critic_params, lr=lr_critic)
-
-        return critic_optimizer, transition_optimizer, vae_optimizer
-
-    def to_device(self):
-        """
-        Send the models on the right device, i.e. CPU or GPU.
-        :return: nothins
-        """
-        self.encoder.to(Device.get())
-        self.decoder.to(Device.get())
-        self.transition.to(Device.get())
-        self.critic.to(Device.get())
 
     def step(self, obs, config):
         """
@@ -157,15 +118,14 @@ class DAIMC:
         :param config: the hydra configuration
         :return: the random action
         """
-        # Compute the EFE of each action.
-        obs = torch.unsqueeze(obs, dim=0).repeat(self.n_actions, 1, 1, 1)
+
+        # Extract the current state from the current observation.
+        obs = torch.unsqueeze(obs, dim=0)
+        state, _ = self.encoder(obs)
         efe = self.calculate_efe_repeated(obs)
 
-        # Compute the probability of each action from the EFE.
-        prob_action, _ = self.softmax_with_log(-efe, self.n_actions)
-
-        # Sample an action according to action probability.
-        return Categorical(prob_action).sample()
+        # Select an action.
+        return self.action_selection.select(-efe, self.steps_done)
 
     def train(self, env, config):
         """
@@ -304,8 +264,6 @@ class DAIMC:
         # Calculate current mean and log variance of the distribution over s_t, and sample
         # a state from this distribution.
         s0, _ = self.encoder(o0)
-        if torch.any(torch.isnan(s0)):
-            print("s0 has nan")
 
         # Create one-hot encoding of all available actions.
         n_samples = s0.shape[0]
@@ -315,10 +273,6 @@ class DAIMC:
         sum_efe = torch.zeros([n_samples], device=Device.get())
         for t in range(self.efe_deepness):
             efe, s0 = self.calculate_efe(s0, a0)
-            if torch.any(torch.isnan(s0)):
-                print("s0 has nan at time {}".format(t))
-            if torch.any(torch.isnan(efe)):
-                print("efe has nan at time {}".format(t))
             sum_efe += efe
 
         return sum_efe
@@ -575,6 +529,7 @@ class DAIMC:
             "steps_done": self.steps_done,
             "queue_capacity": self.queue_capacity,
             "tensorboard_dir": self.tensorboard_dir,
+            "action_selection": dict(self.action_selection),
         }, checkpoint_file)
 
     @staticmethod
@@ -596,6 +551,7 @@ class DAIMC:
             "lr_critic": checkpoint["lr_critic"],
             "lr_transition": checkpoint["lr_transition"],
             "lr_vae": checkpoint["lr_vae"],
+            "action_selection": Checkpoint.load_action_selection(checkpoint),
             "a": checkpoint["a"],
             "b": checkpoint["b"],
             "c": checkpoint["c"],
@@ -610,5 +566,7 @@ class DAIMC:
             "efe_n_samples": checkpoint["efe_n_samples"],
             "queue_capacity": checkpoint["queue_capacity"],
             "tensorboard_dir": config["agent"]["tensorboard_dir"],
-            "steps_done": checkpoint["steps_done"]
+            "steps_done": checkpoint["steps_done"],
         }
+
+    # TODO load and save action selection for all models

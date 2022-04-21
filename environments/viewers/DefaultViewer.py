@@ -8,11 +8,12 @@ import numpy as np
 #
 class DefaultViewer:
 
-    def __init__(self, title, reward, img, image_size=(200, 200), resize_type=Image.ANTIALIAS):
+    def __init__(self, title, reward, img, image_size=(200, 200), resize_type=Image.ANTIALIAS, frame_id=-1):
         """
         Constructor.
         :param title: the window's title.
         :param reward: the current reward received by the agent.
+        :param frame_id: the index of the current frame.
         :param img: the current observation received by the agent.
         :param image_size: the size of the image to display.
         :param resize_type: the type of resize to perform.
@@ -36,18 +37,28 @@ class DefaultViewer:
         self.text_label.grid(row=1, column=0, padx=10, pady=10)
 
         self.reward_label_data = StringVar()
-        self.reward_label_data.set(str(reward))
+        self.reward_label_data.set(str(round(reward, 3)))
         self.reward_label = Label(self.root, textvariable=self.reward_label_data)
         self.reward_label.grid(row=1, column=1, padx=10, pady=10)
+
+        # Add the frame id to the root window.
+        self.text_label = Label(self.root, text="Frame id:")
+        self.text_label.grid(row=2, column=0, padx=10, pady=10)
+
+        self.frame_id_label_data = StringVar()
+        self.frame_id_label_data.set(str(frame_id))
+        self.frame_id_label = Label(self.root, textvariable=self.frame_id_label_data)
+        self.frame_id_label.grid(row=2, column=1, padx=10, pady=10)
 
         # Refresh the main window.
         self.root.update()
 
-    def update(self, reward, img):
+    def update(self, reward, img, frame_id=-1):
         """
         Update the viewer.
         :param reward: the new reward to display.
         :param img: the new observation to display.
+        :param frame_id: the index of the current frame.
         :return: nothing.
         """
 
@@ -57,7 +68,10 @@ class DefaultViewer:
         self.img_label.image = img
 
         # Update the reward.
-        self.reward_label_data.set(str(reward))
+        self.reward_label_data.set(str(round(reward, 3)))
+
+        # Update the frame index.
+        self.frame_id_label_data.set(str(frame_id))
 
         # Refresh the main window.
         self.root.update()

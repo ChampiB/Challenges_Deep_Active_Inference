@@ -175,3 +175,17 @@ class Checkpoint:
         # Set the training mode of the critic.
         Checkpoint.set_training_mode(critic, training_mode)
         return critic
+
+    @staticmethod
+    def load_action_selection(checkpoint):
+        """
+        Load the action selection strategy from the checkpoint.
+        :param checkpoint: the checkpoint.
+        :return: the action selection strategy.
+        """
+
+        # Load the action selection strategy from the checkpoint.
+        action_selection = checkpoint["action_selection"]
+        action_selection_module = importlib.import_module(action_selection["module"])
+        action_selection_class = getattr(action_selection_module, action_selection["class"])
+        return action_selection_class(**action_selection)

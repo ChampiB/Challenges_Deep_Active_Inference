@@ -238,7 +238,7 @@ class LatentSpaceCanvas(tk.Canvas):
         :param image: a pytorch tensor.
         :return: the PhotoImage.
         """
-        image = np.squeeze(image.detach().numpy() * 255)
+        image = image[0].detach().numpy() * 255
         return ImageTk.PhotoImage(image=Image.fromarray(image))
 
     def draw_image(self, x, y, img):

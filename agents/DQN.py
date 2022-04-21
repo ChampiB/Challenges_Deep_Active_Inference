@@ -2,7 +2,7 @@ from torch import nn, unsqueeze
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
-from agents.dqn_networks.PolicyNetworks import ConvPolicy
+from agents.networks.PolicyNetworks import ConvPolicy
 import torch
 from copy import deepcopy
 from pathlib import Path

@@ -4,6 +4,7 @@ defaults:
   - encoder: convolutional64
   - decoder: convolutional64
   - transition: LinearRelu3x100
+  - action_selection: random
 
 _target_: agents.HMM.HMM
 

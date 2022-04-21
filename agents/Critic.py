@@ -5,13 +5,9 @@ from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 from singletons.Device import Device
-from torch import nn, unsqueeze, softmax
-from torch.optim import Adam
+from torch import nn, unsqueeze
+from agents.learning import Optimizers
 import torch
-import random
-import numpy as np
-import math
-from torch.distributions.categorical import Categorical
 
 
 #
@@ -21,7 +17,7 @@ from torch.distributions.categorical import Categorical
 class Critic:
 
     def __init__(
-            self, critic, discount_factor, efe_lr, queue_capacity,
+            self, critic, discount_factor, efe_lr, queue_capacity, action_selection,
             n_steps_between_synchro, tensorboard_dir, steps_done=0, **_
     ):
         """
@@ -30,17 +26,12 @@ class Critic:
         :param discount_factor: the factor by which the future EFE is discounted.
         :param efe_lr: the learning rate of the critic network
         :param queue_capacity: the maximum capacity of the queue
+        :param action_selection: the action selection to be used
         :param n_steps_between_synchro: the number of steps between two synchronisations
             of the target and the critic
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param steps_done: the number of training iterations performed to date.
         """
-
-        # TODO Add those hydra config
-        self.epsilon_start = 0.9  # The initial value of epsilon (for epsilon-greedy).
-        self.epsilon_end = 0.05  # The final value of epsilon (for epsilon-greedy).
-        self.epsilon_decay = 1000  # How slowly should epsilon decay? The bigger, the slower.
-        self.n_actions = 4
 
         # Neural networks.
         self.critic = critic
@@ -48,12 +39,10 @@ class Critic:
         self.target.eval()
 
         # Ensure models are on the right device.
-        self.to_device()
+        Device.send([self.critic, self.target])
 
         # Optimizer.
-        efe_params = \
-            list(critic.parameters())
-        self.efe_optimizer = Adam(efe_params, lr=efe_lr)
+        self.efe_optimizer = Optimizers.get_adam([critic], efe_lr)
 
         # Miscellaneous.
         self.total_rewards = 0.0
@@ -64,22 +53,11 @@ class Critic:
         self.efe_lr = efe_lr
         self.tensorboard_dir = tensorboard_dir
         self.queue_capacity = queue_capacity
+        self.n_actions = 4
+        self.action_selection = action_selection
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
-        self.writer.add_custom_scalars({
-            "Actions": {
-                "acts_prob": ["Multiline", ["acts_prob/down", "acts_prob/up", "acts_prob/left", "acts_prob/right"]],
-            },
-        })
-
-    def to_device(self):
-        """
-        Send the models on the right device, i.e. CPU or GPU.
-        :return: nothins
-        """
-        self.critic.to(Device.get())
-        self.target.to(Device.get())
 
     def step(self, state, config):
         """
@@ -92,24 +70,8 @@ class Critic:
         # Format the state for the critic.
         state = torch.unsqueeze(state, dim=0)
 
-        if config["agent"]["action_selection"] == "epsilon_greedy":
-            # Compute the current epsilon threshold.
-            epsilon_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-                math.exp(-1. * self.steps_done / self.epsilon_decay)
-
-            # Sample a number between 0 and 1, and either execute a random action or
-            # the reward maximizing action according to the sampled value.
-            sample = random.random()
-            if sample > epsilon_threshold:
-                with torch.no_grad():
-                    return self.critic(state).max(1)[1].item()  # Best action.
-            return np.random.choice(self.n_actions)  # Random action.
-        elif config["agent"]["action_selection"] == "greedy":
-            return self.critic(state).max(1)[1].item()  # Best action.
-        else:
-            # Planning as inference.
-            actions_prob = softmax(self.critic(state), dim=1)
-            return Categorical(actions_prob).sample()
+        # Select an action.
+        return self.action_selection.select(self.critic(state), self.steps_done)
 
     def train(self, env, config):
         """
@@ -250,6 +212,7 @@ class Critic:
             "critic_net_state_dict": self.critic.state_dict(),
             "critic_net_module": str(self.critic.__module__),
             "critic_net_class": str(self.critic.__class__.__name__),
+            "action_selection": dict(self.action_selection),
             "steps_done": self.steps_done,
             "efe_lr": self.efe_lr,
             "discount_factor": self.discount_factor,
@@ -272,6 +235,7 @@ class Critic:
             "efe_lr": checkpoint["efe_lr"],
             "discount_factor": checkpoint["discount_factor"],
             "tensorboard_dir": config["agent"]["tensorboard_dir"],
+            "action_selection": Checkpoint.load_action_selection(checkpoint),
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
             "steps_done": checkpoint["steps_done"],

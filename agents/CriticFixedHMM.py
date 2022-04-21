@@ -7,12 +7,9 @@ from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 import agents.math_fc.functions as mathfc
 from singletons.Device import Device
-from torch import nn, unsqueeze, softmax
-from torch.optim import Adam
+from torch import nn, unsqueeze
+from agents.learning import Optimizers
 import torch
-from torch.distributions.categorical import Categorical
-import math
-import random
 
 
 #
@@ -62,12 +59,10 @@ class CriticFixedHMM:
         self.target.eval()
 
         # Ensure models are on the right device.
-        self.to_device()
+        Device.send([self.encoder, self.decoder, self.transition, self.critic, self.target])
 
         # Optimizers.
-        efe_params = \
-            list(critic.parameters())
-        self.efe_optimizer = Adam(efe_params, lr=efe_lr)
+        self.efe_optimizer = Optimizers.get_adam([critic], efe_lr)
 
         # Beta scheduling.
         self.n_steps_beta_reset = n_steps_beta_reset
@@ -92,17 +87,6 @@ class CriticFixedHMM:
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
 
-    def to_device(self):
-        """
-        Send the models on the right device, i.e. CPU or GPU.
-        :return: nothins
-        """
-        self.encoder.to(Device.get())
-        self.decoder.to(Device.get())
-        self.transition.to(Device.get())
-        self.critic.to(Device.get())
-        self.target.to(Device.get())
-
     def step(self, obs, config):
         """
         Select a random action based on the critic ouput
@@ -115,24 +99,8 @@ class CriticFixedHMM:
         obs = torch.unsqueeze(obs, dim=0)
         state, _ = self.encoder(obs)
 
-        # Select an action
-        if self.action_selection == 'best_action':
-            return self.critic(state).max(1)[1].item()
-        elif self.action_selection == 'softmax':
-            return Categorical(softmax(self.critic(state), dim=1)).sample()
-        elif self.action_selection == 'epsilon_greedy':
-            # Compute the current epsilon value.
-            epsilon_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-                                math.exp(-1. * self.steps_done / self.epsilon_decay)
-
-            # Sample a number between 0 and 1, and either execute a random action or
-            # the reward maximizing action according to the sampled value.
-            if random.random() > epsilon_threshold:
-                return self.critic(state).max(1)[1].item()
-            else:
-                return np.random.choice(self.n_actions)
-        else:
-            raise Exception("Error: invalid action selection type.")
+        # Select an action.
+        return self.action_selection.select(self.critic(state), self.steps_done)
 
     def train(self, env, config):
         """
@@ -341,6 +309,7 @@ class CriticFixedHMM:
             "tensorboard_dir": self.tensorboard_dir,
             "queue_capacity": self.queue_capacity,
             "n_steps_between_synchro": self.n_steps_between_synchro,
+            "action_selection": dict(self.action_selection),
         }, checkpoint_file)
 
     @staticmethod
@@ -359,6 +328,7 @@ class CriticFixedHMM:
             "critic": Checkpoint.load_critic(checkpoint, training_mode),
             "vfe_lr": checkpoint["vfe_lr"],
             "efe_lr": checkpoint["efe_lr"],
+            "action_selection": Checkpoint.load_action_selection(checkpoint),
             "beta": checkpoint["beta"],
             "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
             "beta_starting_step": checkpoint["beta_starting_step"],
@@ -369,5 +339,6 @@ class CriticFixedHMM:
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
             "steps_done": checkpoint["steps_done"],
+            "n_actions": checkpoint["n_actions"]
         }
 

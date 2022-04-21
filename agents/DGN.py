@@ -6,23 +6,21 @@ from pathlib import Path
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch import nn, eye, zeros, softmax
-from torch.optim import Adam
+from agents.learning import Optimizers
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.categorical import Categorical
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
-from agents.dgn_networks.EncoderNetworks import ConvEncoder64 as Encoder
-from agents.dgn_networks.DecoderNetworks import ConvDecoder64 as Decoder
-from agents.dgn_networks.TransitionNetworks import LinearRelu as Transition
-from agents.dgn_networks.PolicyNetworks import PolicyNetwork as Policy
-from agents.dgn_networks.CriticNetworks import LinearRelu as Critic
+from agents.networks.EncoderNetworks import ConvEncoder64 as Encoder
+from agents.networks.DecoderNetworks import ConvDecoder64 as Decoder
+from agents.networks.TransitionNetworks import LinearRelu3x100 as Transition
+from agents.networks.PolicyNetworks import PolicyNetwork as Policy
+from agents.networks.CriticNetworks import LinearRelu4x100 as Critic
 from agents.planning.PMCTS import PMCTS
 from agents.planning.NodePMCTS import NodePMCTS as Node
 from singletons.Device import Device
 
+
 # TODO refacto this file
-
-
-
 #
 # The class implementing a Deep-G-Network with Monte Carlo Tree Search.
 #
@@ -43,7 +41,7 @@ class DGN:
         # The device on which the code should be run.
         self.device = Device.get()
 
-        # Create a dictionary containing the hyper-parameters.
+        # Create a dictionary containing the hyperparameters.
         self.hp = {
             "saving_directory": "./data/agent_checkpoints/DGN_checkpoint_10_" + env_name + ".pt",
             "checkpoint_frequency": 100,  # Frequency at which the agent should be saved.
@@ -78,19 +76,14 @@ class DGN:
         self.critic = Critic(self.hp["n_latent_dims"], self.hp["n_actions"])
         self.target = Critic(self.hp["n_latent_dims"], self.hp["n_actions"])
         self.synchronize_target()
-        self.networks_to_device()
+
+        Device.send([self.encoder, self.decoder, self.transition, self.policy, self.critic, self.target])
 
         # Create the agent's optimizers.
-        vfe_parameters = \
-            list(self.decoder.parameters()) + \
-            list(self.encoder.parameters()) + \
-            list(self.transition.parameters()) + \
-            list(self.policy.parameters())
-        self.vfe_optimizer = Adam(vfe_parameters, lr=self.hp["lr_vfe"])
-
-        efe_parameters = \
-            list(self.critic.parameters())
-        self.efe_optimizer = Adam(efe_parameters, lr=self.hp["lr_efe"])
+        self.vfe_optimizer = Optimizers.get_adam(
+            [self.encoder, self.decoder, self.transition, self.policy], self.hp["lr_vfe"]
+        )
+        self.efe_optimizer = Optimizers.get_adam([self.critic], self.hp["lr_efe"])
 
         # Create the summary writer for monitoring with TensorBoard.
         self.writer = SummaryWriter('./data/runs/DGN')
@@ -279,7 +272,7 @@ class DGN:
         self.writer.add_scalar("EFE loss", self.debug["efe_loss"].item(), step)
         self.writer.add_scalar("Discount factor", self.hp["discount_factor"], step)
 
-        # Print a imaginary trajectory.
+        # Print an imaginary trajectory.
         images = self.imagine_trajectory(obs)
         images = torch.stack(images, dim=0)
         self.writer.add_images("An example of imagined trajectory", images)
@@ -288,7 +281,7 @@ class DGN:
         """
         Imagine a trajectory from the initial observation "obs".
         If actions is provided, the agent perform the provided sequence of actions.
-        Otherwise it performs a random sequence of actions of size "length"
+        Otherwise, it performs a random sequence of actions of size "length"
         :param obs: the initial observation to imagine from.
         :param length: the length of the trajectory to generate.
         :param actions: the sequence of action that needs to be imagined.
@@ -329,18 +322,6 @@ class DGN:
         """
         self.target.load_state_dict(self.critic.state_dict())
         self.target.eval()
-
-    def networks_to_device(self):
-        """save synonym
-        Move all networks to the proper device.
-        :return: nothing.
-        """
-        self.encoder.to(self.device)
-        self.decoder.to(self.device)
-        self.transition.to(self.device)
-        self.policy.to(self.device)
-        self.critic.to(self.device)
-        self.target.to(self.device)
 
     #
     # Math related functions.
@@ -487,7 +468,7 @@ class DGN:
         # Get the path in which the agent should be saved.
         path = self.hp["saving_directory"]
 
-        # Create directories and files if they does not exist.
+        # Create directories and files if they do not exist.
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
             file = Path(path)

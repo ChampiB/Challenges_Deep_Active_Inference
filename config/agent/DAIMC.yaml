@@ -5,6 +5,7 @@ defaults:
   - decoder: convolutionalDAIMC
   - transition: linearReluDropout4x512
   - critic: linearRelu3x128
+  - action_selection: softmax
 
 _target_: agents.DAIMC.DAIMC
 

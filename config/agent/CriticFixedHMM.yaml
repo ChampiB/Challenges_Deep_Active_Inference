@@ -5,6 +5,7 @@ defaults:
   - decoder: convolutional64
   - transition: linearRelu3x100
   - critic: linearRelu4x100
+  - action_selection: bestAction
 
 _target_: agents.CriticFixedHMM.CriticFixedHMM
 
@@ -17,7 +18,6 @@ n_steps_between_synchro: 10
 queue_capacity: 50000
 tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CriticFixedHMM_${env.name}_${seed}"
 g_value: "efe"  # values: 'efe' or 'reward'
-action_selection: "best_action"  # values: 'best_action', 'softmax' or 'epsilon_greedy'
 n_actions: ${env.n_actions}
 
 # Beta scheduling

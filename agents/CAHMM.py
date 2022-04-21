@@ -8,7 +8,7 @@ from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 from singletons.Device import Device
 from torch.distributions.categorical import Categorical
 from torch import nn, unsqueeze
-from torch.optim import Adam
+from agents.learning import Optimizers
 import agents.math_fc.functions as mathfc
 import torch
 
@@ -59,7 +59,7 @@ class CAHMM:
         self.synchronize_target()
 
         # Ensure the neural networks are on the right device.
-        self.to_device()
+        Device.send([self.encoder, self.decoder, self.transition, self.critic, self.target])
 
         # Store learning rates.
         self.vfe_lr = vfe_lr
@@ -67,11 +67,9 @@ class CAHMM:
         self.efe_lr = efe_lr
 
         # Initialize the optimizers.
-        self.vfe_optimizer, self.discriminator_optimizer, self.efe_optimizer = \
-            self.get_optimizers(
-                self.encoder, self.decoder, self.transition, self.critic,
-                self.vfe_lr, self.discriminator_lr, self.efe_lr
-            )
+        self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
+        self.efe_optimizer = Optimizers.get_adam([critic], efe_lr)
+        self.discriminator_optimizer = Optimizers.get_adam([encoder], discriminator_lr)
 
         # Beta scheduling.
         self.n_steps_beta_reset = n_steps_beta_reset
@@ -96,61 +94,6 @@ class CAHMM:
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
-        self.writer.add_custom_scalars({
-            "Actions": {
-                "acts_prob": [
-                    "Multiline",
-                    ["acts_prob/down", "acts_prob/up", "acts_prob/left", "acts_prob/right"]
-                ],
-                "discriminator_acts": [
-                    "Multiline",
-                    ["discr_acts/down", "discr_acts/up", "discr_acts/left", "discr_acts/right"]
-                ],
-            },
-        })
-
-    @staticmethod
-    def get_optimizers(encoder, decoder, transition, critic, vfe_lr, discriminator_lr, efe_lr):
-        """
-        Build the optimizers used to train the neural networks of the model.
-        :param encoder: the encoder network.
-        :param decoder: the decoder network.
-        :param transition: the transition network.
-        :param critic: the critic network.
-        :param vfe_lr: the learning rate of the Variational Free Energy optimizer.
-        :param discriminator_lr: the learning rate of the discriminator loss optimizer.
-        :param efe_lr: the learning rate of the Expected Free Energy loss optimizer.
-        :return: the optimizers of the VFE, discriminator loss and EFE loss.
-        """
-        # Create the Variational Free Energy optimizer.
-        vfe_params = \
-            list(encoder.parameters()) + \
-            list(decoder.parameters()) + \
-            list(transition.parameters())
-        vfe_optimizer = Adam(vfe_params, lr=vfe_lr)
-
-        # Create the discriminator loss optimizer.
-        discriminator_params = \
-            list(encoder.parameters())
-        discriminator_optimizer = Adam(discriminator_params, lr=discriminator_lr)
-
-        # Create the Expected Free Energy loss optimizer.
-        efe_params = \
-            list(critic.parameters())
-        efe_optimizer = Adam(efe_params, lr=efe_lr)
-
-        return vfe_optimizer, discriminator_optimizer, efe_optimizer
-
-    def to_device(self):
-        """
-        Send the models on the right device, i.e. CPU or GPU.
-        :return: nothins
-        """
-        self.encoder.to(Device.get())
-        self.decoder.to(Device.get())
-        self.transition.to(Device.get())
-        self.critic.to(Device.get())
-        self.target.to(Device.get())
 
     def step(self, obs, config):
         """
@@ -167,7 +110,6 @@ class CAHMM:
         next_state, _ = self.transition(state.repeat(self.n_actions, 1), self.actions)
         next_obs = self.decode_images(next_state)
         _, _, are_real = self.encoder(next_obs)
-        print("Are real? {}".format(are_real))
         are_real = torch.gt(are_real, self.discriminator_threshold)
 
         # Display whether the agent is exploring or exploiting.
@@ -176,20 +118,14 @@ class CAHMM:
         if config["enable_tensorboard"]:
             behavior = 0 if not torch.all(are_real) else 1
             self.writer.add_scalar("Exploration(0) vs Exploitation(1)", behavior, self.steps_done)
-            self.writer.add_scalar("discr_acts/down",  are_real[0][0], self.steps_done)
-            self.writer.add_scalar("discr_acts/up",    are_real[1][0], self.steps_done)
-            self.writer.add_scalar("discr_acts/left",  are_real[2][0], self.steps_done)
-            self.writer.add_scalar("discr_acts/right", are_real[3][0], self.steps_done)
 
         # If some actions do not lead to realistic observations, select one of those actions.
         if not torch.all(are_real):
-            print("Exploration!")
             are_real = torch.logical_not(are_real).to(torch.float64)
             are_real = are_real / are_real.sum()
             return Categorical(torch.squeeze(are_real)).sample()
 
         # Else select the action that maximises the EFE predicted by the critic.
-        print("Best action!")
         return self.critic(state).max(1)[1].item()  # Best action.
 
     def train(self, env, config):

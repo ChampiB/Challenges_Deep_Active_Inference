@@ -2,6 +2,7 @@ name: critic
 
 defaults:
   - critic: linearRelu4x100
+  - action_selection: epsilonGreedy
 
 _target_: agents.Critic.Critic
 
@@ -12,4 +13,3 @@ discount_factor: 0.95
 n_steps_between_synchro: 10
 queue_capacity: 50000
 tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/Critic_${env.name}_${seed}"
-action_selection: "epsilon_greedy"

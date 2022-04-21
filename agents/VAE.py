@@ -7,7 +7,7 @@ from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 import agents.math_fc.functions as mathfc
 from singletons.Device import Device
 from torch import zeros_like
-from torch.optim import Adam
+from agents.learning import Optimizers
 import torch
 
 
@@ -18,7 +18,7 @@ class VAE:
 
     def __init__(
             self, encoder, decoder, n_steps_beta_reset, beta, lr, beta_starting_step,
-            beta_rate, queue_capacity, tensorboard_dir, steps_done=0, **_
+            beta_rate, queue_capacity, action_selection, tensorboard_dir, steps_done=0, **_
     ):
         """
         Constructor
@@ -30,6 +30,7 @@ class VAE:
         :param beta_rate: the rate at which the beta parameter is increased
         :param lr: the learning rate
         :param queue_capacity: the maximum capacity of the queue
+        :param action_selection: the action selection to be used
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param steps_done: the number of training iterations performed to date.
         """
@@ -39,11 +40,10 @@ class VAE:
         self.decoder = decoder
 
         # Ensure models are on the right device.
-        self.to_device()
+        Device.send([self.encoder, self.decoder])
 
         # Optimizer.
-        params = list(encoder.parameters()) + list(decoder.parameters())
-        self.optimizer = Adam(params, lr=lr)
+        self.optimizer = Optimizers.get_adam([encoder, decoder], lr)
 
         # Beta scheduling.
         self.n_steps_beta_reset = n_steps_beta_reset
@@ -53,29 +53,21 @@ class VAE:
 
         # Miscellaneous.
         self.buffer = ReplayBuffer(capacity=queue_capacity)
-        self.steps_done = 0
+        self.steps_done = steps_done
         self.writer = SummaryWriter(tensorboard_dir)
         self.lr = lr
         self.queue_capacity = queue_capacity
         self.tensorboard_dir = tensorboard_dir
+        self.action_selection = action_selection
 
-    def to_device(self):
-        """
-        Send the models on the right device, i.e. CPU or GPU.
-        :return: nothins
-        """
-        self.encoder.to(Device.get())
-        self.decoder.to(Device.get())
-
-    @staticmethod
-    def step(_, config):
+    def step(self, obs, config):
         """
         Select a random action
-        :param _: unused
-        :param config: the hydra configuration
-        :return: the random action
+        :param obs: unused
+        :param config: unused
+        :return: the action to be performed
         """
-        return np.random.choice(config["env"]["n_actions"])
+        return self.action_selection.select(None, 0)
 
     def train(self, env, config):
         """
@@ -204,6 +196,7 @@ class VAE:
             "encoder_net_state_dict": self.encoder.state_dict(),
             "encoder_net_module": str(self.encoder.__module__),
             "encoder_net_class": str(self.encoder.__class__.__name__),
+            "action_selection": dict(self.action_selection),
             "lr": self.lr,
             "beta": self.beta,
             "n_steps_beta_reset": self.n_steps_beta_reset,
@@ -227,6 +220,7 @@ class VAE:
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
             "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
             "lr": checkpoint["lr"],
+            "action_selection": Checkpoint.load_action_selection(checkpoint),
             "beta": checkpoint["beta"],
             "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
             "beta_starting_step": checkpoint["beta_starting_step"],

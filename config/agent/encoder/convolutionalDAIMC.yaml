@@ -1,4 +1,4 @@
-_target_: agents.dgn_networks.EncoderNetworks.ConvEncoderDAIMC
+_target_: agents.networks.EncoderNetworks.ConvEncoderDAIMC
 
 image_shape: ${images.shape}
 n_states: ${agent.n_states}

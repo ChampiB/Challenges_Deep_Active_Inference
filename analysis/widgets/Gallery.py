@@ -195,8 +195,7 @@ class Gallery(tk.Frame):
             return None
 
         # Gather the current images.
-        imgs = torch.cat([self.gui.samples[i][0] for i in indices])
-        return torch.unsqueeze(imgs, dim=1)
+        return torch.cat([torch.unsqueeze(self.gui.samples[i][0], dim=0) for i in indices])
 
     def reset_images(self, col_name):
         """
@@ -259,7 +258,7 @@ class Gallery(tk.Frame):
         :param image: a pytorch tensor.
         :return: the PhotoImage.
         """
-        image = np.squeeze(image.detach().numpy() * 255)
+        image = image[0].detach().numpy() * 255
         return ImageTk.PhotoImage(image=Image.fromarray(image))
 
     def __display_previous_samples(self):
