@@ -1,4 +1,3 @@
-import agents.layers.ConvTranspose2d
 from environments import EnvFactory
 from environments.wrappers.DefaultWrappers import DefaultWrappers
 from singletons.Logger import Logger
