@@ -59,7 +59,7 @@ class CriticalHMM:
 
         # Optimizers.
         self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
-        self.efe_optimizer = Optimizers.get_adam([critic], efe_lr)
+        self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr)
 
         # Beta scheduling.
         self.n_steps_beta_reset = n_steps_beta_reset
@@ -214,7 +214,6 @@ class CriticalHMM:
         # compute the value of the next states.
         future_gval = torch.zeros(config["batch_size"], device=Device.get())
         future_gval[torch.logical_not(done)] = self.target(mean_hat[torch.logical_not(done)]).max(1)[0]
-        future_gval = future_gval.detach()
 
         # Compute the immediate G-value.
         immediate_gval = rewards
@@ -226,6 +225,7 @@ class CriticalHMM:
 
         # Compute the discounted G values.
         gval = immediate_gval + self.discount_factor * future_gval
+        gval = gval.detach()
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
