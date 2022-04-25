@@ -389,6 +389,7 @@ class CHMM_TS:
             "queue_capacity": self.queue_capacity,
             "n_steps_between_synchro": self.n_steps_between_synchro,
             "action_selection": dict(self.action_selection),
+            "planning": dict(self.mcts)
         }, checkpoint_file)
 
     @staticmethod
@@ -407,7 +408,8 @@ class CHMM_TS:
             "critic": Checkpoint.load_critic(checkpoint, training_mode),
             "vfe_lr": checkpoint["vfe_lr"],
             "efe_lr": checkpoint["efe_lr"],
-            "action_selection": Checkpoint.load_action_selection(checkpoint),
+            "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
+            "planning": Checkpoint.load_object_from_dictionary(checkpoint, "planning"),
             "beta": checkpoint["beta"],
             "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
             "beta_starting_step": checkpoint["beta_starting_step"],

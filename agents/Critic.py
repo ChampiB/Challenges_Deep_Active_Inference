@@ -235,7 +235,7 @@ class Critic:
             "efe_lr": checkpoint["efe_lr"],
             "discount_factor": checkpoint["discount_factor"],
             "tensorboard_dir": config["agent"]["tensorboard_dir"],
-            "action_selection": Checkpoint.load_action_selection(checkpoint),
+            "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
             "steps_done": checkpoint["steps_done"],

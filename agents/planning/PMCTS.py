@@ -21,6 +21,20 @@ class PMCTS:
         self.max_planning_steps = max_planning_steps
         self.root = None
 
+    def __iter__(self):
+        """
+        Make the class iterable.
+        :return: the next key and value.
+        """
+        for key, value in {
+            "module": str(self.__module__),
+            "class": str(self.__class__.__name__),
+            "zeta": self.zeta,
+            "phi": self.phi,
+            "max_planning_steps": self.max_planning_steps
+        }.items():
+            yield key, value
+
     def reset(self, state, cost, pi):
         """
         Reset the tree to its original state.
@@ -69,10 +83,12 @@ class PMCTS:
         best_action = torch.argmax(node.uct(self.zeta))
 
         # Create the new (expanded) node
-        new_state, _ = transition_net(node.state, best_action)
+        state = torch.unsqueeze(node.state, dim=0)
+        best_action = torch.unsqueeze(best_action, dim=0)
+        new_state, _ = transition_net(state, best_action)
         cost = critic_net(new_state)
-        pi = policy_net(new_state)
-        new_node = Node(new_state, cost, pi, best_action)
+        pi = softmax(policy_net(new_state), dim=1)  # TODO make sure the policy network does not have a softmax output layer
+        new_node = Node(new_state, cost, pi, best_action[0])
 
         # Add the new node in the tree
         node.add_child(new_node)

@@ -551,7 +551,7 @@ class DAIMC:
             "lr_critic": checkpoint["lr_critic"],
             "lr_transition": checkpoint["lr_transition"],
             "lr_vae": checkpoint["lr_vae"],
-            "action_selection": Checkpoint.load_action_selection(checkpoint),
+            "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
             "a": checkpoint["a"],
             "b": checkpoint["b"],
             "c": checkpoint["c"],

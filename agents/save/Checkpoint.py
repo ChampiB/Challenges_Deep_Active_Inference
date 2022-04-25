@@ -177,15 +177,16 @@ class Checkpoint:
         return critic
 
     @staticmethod
-    def load_action_selection(checkpoint):
+    def load_object_from_dictionary(checkpoint, key):
         """
         Load the action selection strategy from the checkpoint.
         :param checkpoint: the checkpoint.
+        :param key: the key in the dictionary where the object has been serialized.
         :return: the action selection strategy.
         """
 
         # Load the action selection strategy from the checkpoint.
-        action_selection = checkpoint["action_selection"]
+        action_selection = checkpoint[key]
         action_selection_module = importlib.import_module(action_selection["module"])
         action_selection_class = getattr(action_selection_module, action_selection["class"])
         return action_selection_class(**action_selection)

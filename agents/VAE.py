@@ -220,7 +220,7 @@ class VAE:
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
             "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
             "lr": checkpoint["lr"],
-            "action_selection": Checkpoint.load_action_selection(checkpoint),
+            "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
             "beta": checkpoint["beta"],
             "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
             "beta_starting_step": checkpoint["beta_starting_step"],

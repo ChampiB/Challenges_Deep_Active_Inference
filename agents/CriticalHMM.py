@@ -333,7 +333,7 @@ class CriticalHMM:
             "critic": Checkpoint.load_critic(checkpoint, training_mode),
             "vfe_lr": checkpoint["vfe_lr"],
             "efe_lr": checkpoint["efe_lr"],
-            "action_selection": Checkpoint.load_action_selection(checkpoint),
+            "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
             "beta": checkpoint["beta"],
             "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
             "beta_starting_step": checkpoint["beta_starting_step"],
