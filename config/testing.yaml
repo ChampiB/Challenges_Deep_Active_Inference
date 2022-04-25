@@ -1,6 +1,6 @@
 defaults:
   - env: dSprites
-  - agent: DAIMC
+  - agent: CHMM_TS
   - _self_
 
 checkpoint:
@@ -15,5 +15,5 @@ enable_tensorboard: true
 n_testing_steps: 10000
 buffer_start_size: 50
 batch_size: 10
-seed: 95042
+seed: 1240
 nb_envs: 5

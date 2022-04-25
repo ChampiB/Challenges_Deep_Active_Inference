@@ -8,7 +8,7 @@ defaults:
   - action_selection: epsilonGreedy
   - planning: pmcts
 
-_target_: agents.CriticalHMM.CriticalHMM
+_target_: agents.CHMM_TS.CHMM_TS
 
 # Miscellaneous
 n_states: 10
