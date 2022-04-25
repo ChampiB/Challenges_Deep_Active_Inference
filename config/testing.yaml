@@ -12,7 +12,7 @@ images:
 
 display_gui: true
 enable_tensorboard: true
-n_training_steps: 500000
+n_testing_steps: 10000
 buffer_start_size: 50
 batch_size: 10
 seed: 95042

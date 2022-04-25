@@ -16,7 +16,6 @@ from agents.networks.TransitionNetworks import LinearRelu3x100 as Transition
 from agents.networks.PolicyNetworks import PolicyNetwork as Policy
 from agents.networks.CriticNetworks import LinearRelu4x100 as Critic
 from agents.planning.PMCTS import PMCTS
-from agents.planning.NodePMCTS import NodePMCTS as Node
 from singletons.Device import Device
 
 
@@ -107,7 +106,7 @@ class DGN:
         self.steps_done = 0
 
         # Create the Monte Carlo Tree Search algorithm.
-        self.mcts = PMCTS(self.hp)
+        self.mcts = PMCTS(self.hp["zeta"], self.hp["phi"], self.hp["max_planning_steps"])
 
     #
     # Main functionalities.
@@ -187,10 +186,10 @@ class DGN:
             # Reset MCTS algorithm
             pi = softmax(self.policy(mean), dim=1)
             cost = self.critic(mean)
-            self.mcts.reset(Node(mean, cost, pi))
+            self.mcts.reset(mean, cost, pi)
 
             # Planning.
-            for i in range(self.hp["max_planning_steps"]):
+            for i in range(self.mcts.max_planning_steps):
                 s_node = self.mcts.select_node()
                 e_node = self.mcts.expand_and_evaluate(s_node, self.transition, self.critic, self.policy)
                 self.mcts.back_propagate(e_node)

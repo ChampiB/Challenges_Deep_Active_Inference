@@ -1,0 +1,5 @@
+_target_: agents.planning.PMCTS.PMCTS
+
+zeta: 5  # Exploration constant of the MCTS algorithm.
+phi: 1  # Precision of action selection.
+max_planning_steps: 25  # Maximum number of planning iterations

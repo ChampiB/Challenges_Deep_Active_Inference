@@ -122,7 +122,7 @@ class DAIMC:
         # Extract the current state from the current observation.
         obs = torch.unsqueeze(obs, dim=0)
         state, _ = self.encoder(obs)
-        efe = self.calculate_efe_repeated(obs)
+        efe = torch.unsqueeze(self.calculate_efe_repeated(obs), dim=0)
 
         # Select an action.
         return self.action_selection.select(-efe, self.steps_done)

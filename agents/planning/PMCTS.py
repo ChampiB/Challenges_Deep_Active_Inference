@@ -5,25 +5,31 @@ from agents.planning.NodePMCTS import NodePMCTS as Node
 
 
 #
-# Class implementing the Monte Carlo Tree Search algorithm.
+# Class implementing the predictor Monte Carlo Tree Search algorithm.
 #
 class PMCTS:
 
-    def __init__(self, hp):
+    def __init__(self, zeta, phi, max_planning_steps):
         """
         Constructor.
-        :param hp: the hyper-parameters of the algorithm.
+        :param zeta: Exploration constant of the MCTS algorithm.
+        :param phi: Precision of action selection.
+        :param max_planning_steps: the maximum number of planning iterations.
         """
-        self.__hp = hp
-        self.__root = None
+        self.zeta = zeta
+        self.phi = phi
+        self.max_planning_steps = max_planning_steps
+        self.root = None
 
-    def reset(self, root):
+    def reset(self, state, cost, pi):
         """
         Reset the tree to its original state.
-        :param root: the root of the tree.
+        :param state: the current state.
+        :param cost: the cost of each action.
+        :param pi: the probability of selecting each action.
         :return: nothing.
         """
-        self.__root = root
+        self.root = Node(state, cost, pi)
 
     def select_node(self):
         """
@@ -32,13 +38,13 @@ class PMCTS:
         """
 
         # Check that the root has been initialised
-        if self.__root is None:
+        if self.root is None:
             raise Exception("The function reset must be called before calling select_node.")
 
         # Select the child root with the highest UCT value.
-        current = self.__root
+        current = self.root
         while len(current.children) != 0:
-            best_action = torch.argmax(current.uct(self.__hp["zeta"]))
+            best_action = torch.argmax(current.uct(self.zeta))
             child = next(filter(lambda c: c.action == best_action, current.children), None)
             if child is None:
                 return current
@@ -56,11 +62,11 @@ class PMCTS:
         """
 
         # Check that the root has been initialised
-        if self.__root is None:
+        if self.root is None:
             raise Exception("The function reset must be called before calling expand.")
 
         # Get the index of the child with the largest UCT value
-        best_action = torch.argmax(node.uct(self.__hp["zeta"]))
+        best_action = torch.argmax(node.uct(self.zeta))
 
         # Create the new (expanded) node
         new_state, _ = transition_net(node.state, best_action)
@@ -81,7 +87,7 @@ class PMCTS:
         """
 
         # Check that the root has been initialised
-        if self.__root is None:
+        if self.root is None:
             raise Exception("The function reset must be called before calling back_propagate.")
 
         # Set the current node to be the parent of the newly expanded node
@@ -112,7 +118,7 @@ class PMCTS:
         representing the prior over actions.
         :return: the parameters of the prior over actions.
         """
-        return softmax(self.__hp["phi"] * self.__root.visits, dim=0)
+        return softmax(self.phi * self.root.visits, dim=0)
 
     def select_action(self):
         """
@@ -121,7 +127,7 @@ class PMCTS:
         """
 
         # Check that the root has been initialised
-        if self.__root is None:
+        if self.root is None:
             raise Exception("The function reset must be called before calling select_action.")
 
         # Select an action according to the planning procedure
