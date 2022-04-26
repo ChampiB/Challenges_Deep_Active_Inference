@@ -1,3 +1,5 @@
+import time
+
 from agents.learning import Optimizers
 from agents.save.Checkpoint import Checkpoint
 from torch.utils.tensorboard import SummaryWriter
@@ -8,7 +10,9 @@ from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 import agents.math_fc.functions as mathfc
 from singletons.Device import Device
-from torch import nn, unsqueeze
+from torch import nn, unsqueeze, softmax
+from agents.planning.PMCTS import PMCTS
+from torch.distributions.categorical import Categorical
 import torch
 
 
@@ -53,6 +57,8 @@ class CriticalHMM:
         self.critic = critic
         self.target = copy.deepcopy(self.critic)
         self.target.eval()
+
+        self.mcts = PMCTS(5, 1, 100)  # TODO
 
         # Ensure models are on the right device.
         Device.send([self.encoder, self.decoder, self.transition, self.critic, self.target])
@@ -207,6 +213,9 @@ class CriticalHMM:
         mean_hat, log_var_hat = self.encoder(next_obs)
 
         # Compute the G-values of each action in the current state.
+        mask = torch.zeros(mean_hat_t.shape[1])
+        mask[10:] = 1
+        mean_hat_t *= mask
         critic_pred = self.critic(mean_hat_t)
         critic_pred = critic_pred.gather(dim=1, index=unsqueeze(actions.to(torch.int64), dim=1))
 
@@ -346,3 +355,78 @@ class CriticalHMM:
             "steps_done": checkpoint["steps_done"],
             "n_actions": checkpoint["n_actions"]
         }
+
+    # TODO
+    def step_test(self, obs, config):
+        """
+        Select a random action based on the critic ouput
+        :param obs: the input observation from which decision should be made
+        :param config: the hydra configuration
+        :return: the random action
+        """
+
+        # Extract the current state from the current observation.
+        obs = torch.unsqueeze(obs, dim=0)
+        state, _ = self.encoder(obs)
+
+        time.sleep(0.2)
+
+        return self.critic(state).argmax()
+
+        # TODO # Reset MCTS algorithm
+        # TODO pi = softmax(self.critic(state), dim=1)
+        # TODO cost = self.critic(state)
+        # TODO self.mcts.reset(state, cost, pi)
+
+        # TODO # Planning.
+        # TODO for i in range(self.mcts.max_planning_steps):
+        # TODO     s_node = self.mcts.select_node()
+        # TODO     e_node = self.mcts.expand_and_evaluate(s_node, self.transition, self.critic, self.critic)
+        # TODO     self.mcts.back_propagate(e_node)
+
+        # TODO # Select the action to perform in the environment.
+        # TODO return self.mcts.select_action()
+
+    # TODO
+    def test(self, env, config):
+        """
+        Test the agent in the gym environment passed as parameters
+        :param env: the gym environment
+        :param config: the hydra configuration
+        :return: nothing
+        """
+
+        # Retrieve the initial observation from the environment.
+        obs = env.reset()
+
+        # Render the environment (if needed).
+        if config["display_gui"]:
+            env.render()
+
+        # Train the agent.
+        Logger.get().info("Start the testing at {time}".format(time=datetime.now()))
+        self.steps_done = 0
+        while self.steps_done < config["n_testing_steps"]:
+
+            # Select an action.
+            action = self.step_test(obs, config)
+
+            # Execute the action in the environment.
+            obs, reward, done, _ = env.step(action)
+
+            # Render the environment and monitor total rewards (if needed).
+            if config["enable_tensorboard"]:
+                self.total_rewards += reward
+                self.writer.add_scalar("Rewards", self.total_rewards, self.steps_done)
+            if config["display_gui"]:
+                env.render()
+
+            # Reset the environment when a trial ends.
+            if done:
+                obs = env.reset()
+
+            # Increase the number of steps done.
+            self.steps_done += 1
+
+        # Close the environment.
+        env.close()

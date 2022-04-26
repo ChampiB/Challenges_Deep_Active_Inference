@@ -95,7 +95,7 @@ class DatasetFrame(tk.Frame):
         """
         images = self.image_selector.get_images_from_dataset(
             [self.image_selector.get_index_of_target_image()]
-        ).repeat(1, 3, 1, 1)
+        ).repeat(1, self.gui.config["images"]["shape"][0], 1, 1)
         self.gui.add_sample((images[0], None))
 
     def add_images_to_sample(self):
@@ -104,7 +104,7 @@ class DatasetFrame(tk.Frame):
         :return: nothing.
         """
         images = self.image_selector.get_images_from_dataset(self.images_to_be_added)
-        images = images.repeat(1, 3, 1, 1)
+        images = images.repeat(1, self.gui.config["images"]["shape"][0], 1, 1)
         for i in range(0, len(self.images_to_be_added)):
             self.gui.add_sample((images[i], None))
         self.refresh()

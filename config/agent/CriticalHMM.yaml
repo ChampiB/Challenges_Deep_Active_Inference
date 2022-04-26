@@ -10,9 +10,9 @@ defaults:
 _target_: agents.CriticalHMM.CriticalHMM
 
 # Miscellaneous
-n_states: 10
+n_states: 15
 vfe_lr: 0.0001
-efe_lr: 0.001
+efe_lr: 0.0001
 discount_factor: 0.95
 n_steps_between_synchro: 10
 queue_capacity: 50000
