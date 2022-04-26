@@ -213,9 +213,9 @@ class CriticalHMM:
         mean_hat, log_var_hat = self.encoder(next_obs)
 
         # Compute the G-values of each action in the current state.
-        mask = torch.zeros(mean_hat_t.shape[1])
-        mask[10:] = 1
-        mean_hat_t *= mask
+        mask = torch.zeros(mean_hat_t.shape[1], device=Device.get())  # TODO
+        mask[10:] = 1  # TODO
+        mean_hat_t *= mask  # TODO
         critic_pred = self.critic(mean_hat_t)
         critic_pred = critic_pred.gather(dim=1, index=unsqueeze(actions.to(torch.int64), dim=1))
 
