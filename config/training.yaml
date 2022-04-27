@@ -1,6 +1,6 @@
 defaults:
   - env: dSprites
-  - agent: CriticalHMM
+  - agent: CHMM_2LS
   - _self_
 
 checkpoint:

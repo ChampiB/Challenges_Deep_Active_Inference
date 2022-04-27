@@ -131,6 +131,29 @@ class Checkpoint:
         return encoder
 
     @staticmethod
+    def load_encoder_2ls(checkpoint, training_mode=True):
+        """
+        Load the encoder from the checkpoint.
+        :param checkpoint: the checkpoint.
+        :param training_mode: True if the agent is being loaded for training, False otherwise.
+        :return: the encoder.
+        """
+
+        # Load encoder network.
+        encoder_module = importlib.import_module(checkpoint["encoder_net_module"])
+        encoder_class = getattr(encoder_module, checkpoint["encoder_net_class"])
+        encoder = encoder_class(
+            n_reward_states=checkpoint["n_reward_states"],
+            n_model_states=checkpoint["n_states"],
+            image_shape=checkpoint["images_shape"]
+        )
+        encoder.load_state_dict(checkpoint["encoder_net_state_dict"])
+
+        # Set the training mode of the encoder.
+        Checkpoint.set_training_mode(encoder, training_mode)
+        return encoder
+
+    @staticmethod
     def load_transition(checkpoint, training_mode=True):
         """
         Load the transition from the checkpoint.
@@ -139,14 +162,12 @@ class Checkpoint:
         :return: the transition.
         """
 
-        # Load number of states and actions.
-        n_actions = checkpoint["n_actions"]
-        n_states = checkpoint["n_states"]
-
         # Load transition network.
         transition_module = importlib.import_module(checkpoint["transition_net_module"])
         transition_class = getattr(transition_module, checkpoint["transition_net_class"])
-        transition = transition_class(n_states=n_states, n_actions=n_actions)
+        transition = transition_class(
+            n_states=checkpoint["n_states"], n_actions=checkpoint["n_actions"]
+        )
         transition.load_state_dict(checkpoint["transition_net_state_dict"])
 
         # Set the training mode of the transition.
@@ -154,22 +175,21 @@ class Checkpoint:
         return transition
 
     @staticmethod
-    def load_critic(checkpoint, training_mode=True):
+    def load_critic(checkpoint, training_mode=True, n_states_key="n_states"):
         """
         Load the critic from the checkpoint.
         :param checkpoint: the checkpoint.
+        :param n_states_key: the key of the dictionnary containing the number of states.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
         :return: the critic.
         """
 
-        # Load number of states and actions.
-        n_actions = checkpoint["n_actions"]
-        n_states = checkpoint["n_states"]
-
         # Load critic network.
         critic_module = importlib.import_module(checkpoint["critic_net_module"])
         critic_class = getattr(critic_module, checkpoint["critic_net_class"])
-        critic = critic_class(n_states=n_states, n_actions=n_actions)
+        critic = critic_class(
+            n_states=checkpoint[n_states_key], n_actions=checkpoint["n_actions"]
+        )
         critic.load_state_dict(checkpoint["critic_net_state_dict"])
 
         # Set the training mode of the critic.

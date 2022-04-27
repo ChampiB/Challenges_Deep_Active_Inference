@@ -1,0 +1,4 @@
+_target_: agents.networks.DecoderNetworks.ConvDecoder64
+
+image_shape: ${images.shape}
+n_states: ${agent.n_model_states}

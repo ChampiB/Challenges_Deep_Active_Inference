@@ -1,0 +1,4 @@
+_target_: agents.networks.CriticNetworks.LinearRelu4x100
+
+n_states: ${agent.n_reward_states}
+n_actions: ${env.n_actions}

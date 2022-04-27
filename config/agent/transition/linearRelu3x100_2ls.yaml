@@ -1,0 +1,4 @@
+_target_: agents.networks.TransitionNetworks.LinearRelu3x100
+
+n_states: ${agent.n_model_states}
+n_actions: ${env.n_actions}

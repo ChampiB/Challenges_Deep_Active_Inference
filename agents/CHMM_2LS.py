@@ -1,7 +1,7 @@
+import time
 from agents.learning import Optimizers
 from agents.save.Checkpoint import Checkpoint
 from torch.utils.tensorboard import SummaryWriter
-import numpy as np
 import copy
 from datetime import datetime
 from singletons.Logger import Logger
@@ -13,15 +13,16 @@ import torch
 
 
 #
-# Implement a Critical HMM able to evaluate the qualities of each action.
+# Implement a Critical HMM with two latent spaces:
+# - one for reward/efe prediction;
+# - one for modelling the world.
 #
-class CriticalHMM:
+class CHMM_2LS:
 
     def __init__(
-            self, encoder, decoder, transition, critic, discount_factor,
-            n_steps_beta_reset, beta, efe_lr, vfe_lr, beta_starting_step, beta_rate,
-            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
-            action_selection, n_actions=4, steps_done=0, **_
+            self, encoder, decoder, transition, critic, discount_factor, beta, efe_lr,
+            vfe_lr, queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
+            action_selection, steps_done=0, **_
     ):
         """
         Constructor
@@ -30,12 +31,8 @@ class CriticalHMM:
         :param transition: the transition network
         :param critic: the critic network
         :param action_selection: the action selection to be used
-        :param n_actions: the number of actions
         :param discount_factor: the factor by which the future EFE is discounted.
-        :param n_steps_beta_reset: the number of steps after with beta is reset
-        :param beta_starting_step: the number of steps after which beta start increasing
         :param beta: the initial value for beta
-        :param beta_rate: the rate at which the beta parameter is increased
         :param efe_lr: the learning rate of the critic network
         :param vfe_lr: the learning rate of the other networks
         :param queue_capacity: the maximum capacity of the queue
@@ -61,12 +58,6 @@ class CriticalHMM:
         self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
         self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr)
 
-        # Beta scheduling.
-        self.n_steps_beta_reset = n_steps_beta_reset
-        self.beta_starting_step = beta_starting_step
-        self.beta = beta
-        self.beta_rate = beta_rate
-
         # Miscellaneous.
         self.total_rewards = 0.0
         self.n_steps_between_synchro = n_steps_between_synchro
@@ -79,7 +70,7 @@ class CriticalHMM:
         self.tensorboard_dir = tensorboard_dir
         self.queue_capacity = queue_capacity
         self.action_selection = action_selection
-        self.n_actions = n_actions
+        self.beta = beta
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
@@ -94,7 +85,7 @@ class CriticalHMM:
 
         # Extract the current state from the current observation.
         obs = torch.unsqueeze(obs, dim=0)
-        state, _ = self.encoder(obs)
+        _, _, state, _ = self.encoder(obs)
 
         # Select an action.
         return self.action_selection.select(self.critic(state), self.steps_done)
@@ -183,12 +174,6 @@ class CriticalHMM:
         vfe_loss.backward()
         self.vfe_optimizer.step()
 
-        # Implement the cyclical scheduling for beta.
-        if self.steps_done >= self.beta_starting_step:
-            self.beta = np.clip(self.beta + self.beta_rate, 0, 1)
-        if self.steps_done % self.n_steps_beta_reset == 0:
-            self.beta = 0
-
     def compute_efe_loss(self, config, obs, actions, next_obs, done, rewards):
         """
         Compute the expected free energy loss
@@ -202,25 +187,25 @@ class CriticalHMM:
         """
 
         # Compute required vectors.
-        mean_hat_t, log_var_hat_t = self.encoder(obs)
-        _, log_var = self.transition(mean_hat_t, actions)
-        mean_hat, log_var_hat = self.encoder(next_obs)
+        m_mean_hat_t, _, r_mean_hat_t, _ = self.encoder(obs)
+        _, m_log_var = self.transition(m_mean_hat_t, actions)
+        _, m_log_var_hat, r_mean_hat, _ = self.encoder(next_obs)
 
         # Compute the G-values of each action in the current state.
-        critic_pred = self.critic(mean_hat_t)
+        critic_pred = self.critic(r_mean_hat_t)
         critic_pred = critic_pred.gather(dim=1, index=unsqueeze(actions.to(torch.int64), dim=1))
 
         # For each batch entry where the simulation did not stop,
         # compute the value of the next states.
         future_gval = torch.zeros(config["batch_size"], device=Device.get())
-        future_gval[torch.logical_not(done)] = self.target(mean_hat[torch.logical_not(done)]).max(1)[0]
+        future_gval[torch.logical_not(done)] = self.target(r_mean_hat[torch.logical_not(done)]).max(1)[0]
 
         # Compute the immediate G-value.
         immediate_gval = rewards
 
         # Add information gain to the immediate g-value (if needed).
         if self.g_value == "efe":
-            immediate_gval += mathfc.entropy_gaussian(log_var_hat) - mathfc.entropy_gaussian(log_var)
+            immediate_gval += mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
             immediate_gval = immediate_gval.to(torch.float32)
 
         # Compute the discounted G values.
@@ -243,9 +228,9 @@ class CriticalHMM:
 
         # Compute required vectors.
         # TODO optimize the computation of those vector across efe and vfe computation
-        mean_hat, log_var_hat = self.encoder(obs)
+        mean_hat, log_var_hat, _, _ = self.encoder(obs)
         states = mathfc.reparameterize(mean_hat, log_var_hat)
-        mean_hat, log_var_hat = self.encoder(next_obs)
+        mean_hat, log_var_hat, _, _ = self.encoder(next_obs)
         next_state = mathfc.reparameterize(mean_hat, log_var_hat)
         mean, log_var = self.transition(states, actions)
         alpha = self.decoder(next_state)
@@ -288,7 +273,8 @@ class CriticalHMM:
             "agent_module": str(self.__module__),
             "agent_class": str(self.__class__.__name__),
             "images_shape": config["images"]["shape"],
-            "n_states": config["agent"]["n_states"],
+            "n_states": config["agent"]["n_model_states"],
+            "n_reward_states": config["agent"]["n_reward_states"],
             "n_actions": config["env"]["n_actions"],
             "decoder_net_state_dict": self.decoder.state_dict(),
             "decoder_net_module": str(self.decoder.__module__),
@@ -302,10 +288,7 @@ class CriticalHMM:
             "critic_net_state_dict": self.critic.state_dict(),
             "critic_net_module": str(self.critic.__module__),
             "critic_net_class": str(self.critic.__class__.__name__),
-            "n_steps_beta_reset": self.n_steps_beta_reset,
-            "beta_starting_step": self.beta_starting_step,
             "beta": self.beta,
-            "beta_rate": self.beta_rate,
             "steps_done": self.steps_done,
             "g_value": self.g_value,
             "vfe_lr": self.vfe_lr,
@@ -327,22 +310,93 @@ class CriticalHMM:
         :return: a dictionary containing the contrutor's parameters.
         """
         return {
-            "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
+            "encoder": Checkpoint.load_encoder_2ls(checkpoint, training_mode),
             "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
             "transition": Checkpoint.load_transition(checkpoint, training_mode),
-            "critic": Checkpoint.load_critic(checkpoint, training_mode),
+            "critic": Checkpoint.load_critic(checkpoint, training_mode, n_states_key="n_reward_states"),
             "vfe_lr": checkpoint["vfe_lr"],
             "efe_lr": checkpoint["efe_lr"],
             "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
             "beta": checkpoint["beta"],
-            "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
-            "beta_starting_step": checkpoint["beta_starting_step"],
-            "beta_rate": checkpoint["beta_rate"],
             "discount_factor": checkpoint["discount_factor"],
             "tensorboard_dir": config["agent"]["tensorboard_dir"],
             "g_value": checkpoint["g_value"],
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
-            "steps_done": checkpoint["steps_done"],
-            "n_actions": checkpoint["n_actions"]
+            "steps_done": checkpoint["steps_done"]
         }
+
+    # TODO
+    def step_test(self, obs, config):
+        """
+        Select a random action based on the critic ouput
+        :param obs: the input observation from which decision should be made
+        :param config: the hydra configuration
+        :return: the random action
+        """
+
+        # Extract the current state from the current observation.
+        obs = torch.unsqueeze(obs, dim=0)
+        state, _ = self.encoder(obs)
+
+        time.sleep(0.2)
+
+        return self.critic(state).argmax()
+
+        # TODO # Reset MCTS algorithm
+        # TODO pi = softmax(self.critic(state), dim=1)
+        # TODO cost = self.critic(state)
+        # TODO self.mcts.reset(state, cost, pi)
+
+        # TODO # Planning.
+        # TODO for i in range(self.mcts.max_planning_steps):
+        # TODO     s_node = self.mcts.select_node()
+        # TODO     e_node = self.mcts.expand_and_evaluate(s_node, self.transition, self.critic, self.critic)
+        # TODO     self.mcts.back_propagate(e_node)
+
+        # TODO # Select the action to perform in the environment.
+        # TODO return self.mcts.select_action()
+
+    # TODO
+    def test(self, env, config):
+        """
+        Test the agent in the gym environment passed as parameters
+        :param env: the gym environment
+        :param config: the hydra configuration
+        :return: nothing
+        """
+
+        # Retrieve the initial observation from the environment.
+        obs = env.reset()
+
+        # Render the environment (if needed).
+        if config["display_gui"]:
+            env.render()
+
+        # Train the agent.
+        Logger.get().info("Start the testing at {time}".format(time=datetime.now()))
+        self.steps_done = 0
+        while self.steps_done < config["n_testing_steps"]:
+
+            # Select an action.
+            action = self.step_test(obs, config)
+
+            # Execute the action in the environment.
+            obs, reward, done, _ = env.step(action)
+
+            # Render the environment and monitor total rewards (if needed).
+            if config["enable_tensorboard"]:
+                self.total_rewards += reward
+                self.writer.add_scalar("Rewards", self.total_rewards, self.steps_done)
+            if config["display_gui"]:
+                env.render()
+
+            # Reset the environment when a trial ends.
+            if done:
+                obs = env.reset()
+
+            # Increase the number of steps done.
+            self.steps_done += 1
+
+        # Close the environment.
+        env.close()

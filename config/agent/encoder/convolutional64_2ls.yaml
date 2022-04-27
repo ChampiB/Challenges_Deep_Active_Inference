@@ -1,0 +1,5 @@
+_target_: agents.networks.EncoderNetworks.ConvEncoder2LS64
+
+image_shape: ${images.shape}
+n_model_states: ${agent.n_model_states}
+n_reward_states: ${agent.n_reward_states}
