@@ -205,7 +205,8 @@ class CHMM_2LS:
 
         # Add information gain to the immediate g-value (if needed).
         if self.g_value == "efe":
-            immediate_gval += mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
+            immediate_gval += mathfc.entropy_gaussian(m_log_var) - mathfc.entropy_gaussian(m_log_var_hat)
+            # TODO or immediate_gval += mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
             immediate_gval = immediate_gval.to(torch.float32)
 
         # Compute the discounted G values.
