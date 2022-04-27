@@ -18,15 +18,8 @@ class DiagonalGaussianNLS(nn.Module):
         """
         super().__init__()
         self.n_latent_spaces = len(nb_components)
-        self.means = []
-        self.log_vars = []
-        for i in range(self.n_latent_spaces):
-            self.means.append(nn.Sequential(
-                nn.Linear(input_size, nb_components[i])
-            ))
-            self.log_vars.append(nn.Sequential(
-                nn.Linear(input_size, nb_components[i])
-            ))
+        self.means = nn.ModuleList(nn.Linear(input_size, nb_components[i]) for i in range(self.n_latent_spaces))
+        self.log_vars = nn.ModuleList(nn.Linear(input_size, nb_components[i]) for i in range(self.n_latent_spaces))
 
     def forward(self, x):
         """
