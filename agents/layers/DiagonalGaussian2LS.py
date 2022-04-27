@@ -1,13 +1,12 @@
 from torch import nn
-import itertools
 
 
 #
-# Class implementing a network that maps a vector of size "m" into "n" sets of
-# two vectors representing the mean and variance of "n" Gaussian with diagonal
+# Class implementing a network that maps a vector of size "m" into two sets of
+# two vectors representing the mean and variance of two Gaussian with diagonal
 # covariance matrix.
 #
-class DiagonalGaussianNLS(nn.Module):
+class DiagonalGaussian2LS(nn.Module):
 
     def __init__(self, input_size, nb_components):
         """
@@ -18,8 +17,10 @@ class DiagonalGaussianNLS(nn.Module):
         """
         super().__init__()
         self.n_latent_spaces = len(nb_components)
-        self.means = nn.ModuleList(nn.Linear(input_size, nb_components[i]) for i in range(self.n_latent_spaces))
-        self.log_vars = nn.ModuleList(nn.Linear(input_size, nb_components[i]) for i in range(self.n_latent_spaces))
+        self.mean_1 = nn.Linear(input_size, nb_components[0])
+        self.mean_2 = nn.Linear(input_size, nb_components[1])
+        self.log_var_1 = nn.Linear(input_size, nb_components[0])
+        self.log_var_2 = nn.Linear(input_size, nb_components[1])
 
     def forward(self, x):
         """
@@ -27,5 +28,4 @@ class DiagonalGaussianNLS(nn.Module):
         :param x: the input vector
         :return: the mean and the log of the variance of the DG.
         """
-        res = [(self.means[i](x), self.log_vars[i](x)) for i in range(self.n_latent_spaces)]
-        return list(itertools.chain.from_iterable(res))
+        return self.mean_1(x), self.log_var_1(x), self.mean_2(x), self.log_var_2(x)

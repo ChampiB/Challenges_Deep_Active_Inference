@@ -1,5 +1,5 @@
 from math import prod
-from agents.layers.DiagonalGaussianNLS import DiagonalGaussianNLS as Gaussian
+from agents.layers.DiagonalGaussian2LS import DiagonalGaussianNLS as Gaussian
 from torch import nn, zeros
 
 
