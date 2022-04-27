@@ -1,5 +1,6 @@
 from math import prod
-from agents.layers.DiagonalGaussian2LS import DiagonalGaussianNLS as Gaussian
+from agents.layers.DiagonalGaussian import DiagonalGaussian as Gaussian
+from agents.layers.DiagonalGaussian2LS import DiagonalGaussian2LS as Gaussian2LS
 from torch import nn, zeros
 
 
@@ -279,7 +280,7 @@ class ConvEncoder2LS64(nn.Module):
             nn.Flatten(start_dim=1),
             nn.Linear(conv_output_size, 256),
             nn.ReLU(),
-            Gaussian(256, [n_model_states, n_reward_states])
+            Gaussian2LS(256, [n_model_states, n_reward_states])
         )
 
         # Create the full encoder network.
