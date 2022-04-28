@@ -188,8 +188,8 @@ class CHMM_2LS:
 
         # Compute required vectors.
         m_mean_hat_t, _, r_mean_hat_t, _ = self.encoder(obs)
-        _, m_log_var = self.transition(m_mean_hat_t, actions)
-        _, m_log_var_hat, r_mean_hat, _ = self.encoder(next_obs)
+        m_mean, m_log_var = self.transition(m_mean_hat_t, actions)
+        m_mean_hat, m_log_var_hat, r_mean_hat, _ = self.encoder(next_obs)
 
         # Compute the G-values of each action in the current state.
         critic_pred = self.critic(r_mean_hat_t)
@@ -201,21 +201,27 @@ class CHMM_2LS:
         future_gval[torch.logical_not(done)] = self.target(r_mean_hat[torch.logical_not(done)]).max(1)[0]
 
         # Compute the immediate G-value.
-        immediate_gval = rewards
+        immediate_gval = rewards.clone()
 
         # Add information gain to the immediate g-value (if needed).
         if self.g_value == "efe":
+            immediate_gval += mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
+        elif self.g_value == "efe_1":
+            immediate_gval += mathfc.kl_div_gaussian(m_mean_hat, m_log_var_hat, m_mean, m_log_var)
+        elif self.g_value == "efe_2":
             immediate_gval += mathfc.entropy_gaussian(m_log_var) - mathfc.entropy_gaussian(m_log_var_hat)
-            # TODO or immediate_gval += mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
-            immediate_gval = immediate_gval.to(torch.float32)
+        elif self.g_value == "efe_3":
+            immediate_gval += mathfc.kl_div_gaussian(m_mean, m_log_var, m_mean_hat, m_log_var_hat)
+
+        immediate_gval = immediate_gval.to(torch.float32)
 
         # Compute the discounted G values.
         gval = immediate_gval + self.discount_factor * future_gval
-        gval = gval.detach()
+        gval = gval.unsqueeze(dim=1).detach()
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
-        return loss(critic_pred, gval.unsqueeze(1))
+        return loss(critic_pred, gval)
 
     def compute_vfe(self, config, obs, actions, next_obs):
         """
