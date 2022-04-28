@@ -22,7 +22,7 @@ class CHMM_2LS:
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor, beta, efe_lr,
             vfe_lr, queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
-            action_selection, steps_done=0, **_
+            action_selection, phi, steps_done=0, **_
     ):
         """
         Constructor
@@ -32,7 +32,7 @@ class CHMM_2LS:
         :param critic: the critic network
         :param action_selection: the action selection to be used
         :param discount_factor: the factor by which the future EFE is discounted.
-        :param beta: the initial value for beta
+        :param beta: hyper-parameter trading-off accuracy and complexity
         :param efe_lr: the learning rate of the critic network
         :param vfe_lr: the learning rate of the other networks
         :param queue_capacity: the maximum capacity of the queue
@@ -40,7 +40,8 @@ class CHMM_2LS:
             of the target and the critic
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param g_value: the type of value to be used, i.e. "reward" or "efe"
-        :param steps_done: the number of training iterations performed to date.
+        :param phi: hyper-parameter trading-off reward and information gain
+        :param steps_done: the number of training iterations performed to date
         """
 
         # Neural networks.
@@ -71,6 +72,7 @@ class CHMM_2LS:
         self.queue_capacity = queue_capacity
         self.action_selection = action_selection
         self.beta = beta
+        self.phi = phi
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
@@ -201,7 +203,7 @@ class CHMM_2LS:
         future_gval[torch.logical_not(done)] = self.target(r_mean_hat[torch.logical_not(done)]).max(1)[0]
 
         # Compute the immediate G-value.
-        immediate_gval = rewards.clone()
+        immediate_gval = self.phi * rewards.clone()
 
         # Add information gain to the immediate g-value (if needed).
         if self.g_value == "efe":
@@ -213,10 +215,8 @@ class CHMM_2LS:
         elif self.g_value == "efe_3":
             immediate_gval += mathfc.kl_div_gaussian(m_mean, m_log_var, m_mean_hat, m_log_var_hat)
 
-        immediate_gval = immediate_gval.to(torch.float32)
-
         # Compute the discounted G values.
-        gval = immediate_gval + self.discount_factor * future_gval
+        gval = immediate_gval.to(torch.float32) + self.discount_factor * future_gval
         gval = gval.unsqueeze(dim=1).detach()
 
         # Compute the loss function.
@@ -296,6 +296,7 @@ class CHMM_2LS:
             "critic_net_module": str(self.critic.__module__),
             "critic_net_class": str(self.critic.__class__.__name__),
             "beta": self.beta,
+            "phi": self.phi,
             "steps_done": self.steps_done,
             "g_value": self.g_value,
             "vfe_lr": self.vfe_lr,
@@ -325,6 +326,7 @@ class CHMM_2LS:
             "efe_lr": checkpoint["efe_lr"],
             "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
             "beta": checkpoint["beta"],
+            "phi": checkpoint["phi"],
             "discount_factor": checkpoint["discount_factor"],
             "tensorboard_dir": config["agent"]["tensorboard_dir"],
             "g_value": checkpoint["g_value"],

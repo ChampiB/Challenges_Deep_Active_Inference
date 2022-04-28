@@ -19,4 +19,5 @@ n_steps_between_synchro: 10
 queue_capacity: 50000
 tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CHMM_2LS_${env.name}_${seed}"
 g_value: "efe"
-beta: 1.0
+beta: 1.0 # Parameter trading-off accuracy and complexity
+phi: 1.0 # Parameter trading-off reward and information gain
