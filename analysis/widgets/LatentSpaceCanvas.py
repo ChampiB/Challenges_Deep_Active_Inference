@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import messagebox
-import numpy as np
 import torch
 from PIL import Image, ImageTk
 

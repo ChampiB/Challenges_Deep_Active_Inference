@@ -11,7 +11,7 @@ class SampleFrame(tk.Frame):
         # Call the constructor of the super class.
         super().__init__(parent)
 
-        # Store gui data and empty image.
+        # Store gui data.
         self.gui = gui
 
         # Create the gallery.

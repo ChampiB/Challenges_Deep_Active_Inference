@@ -221,7 +221,9 @@ class CriticalHMM:
         # Add information gain to the immediate g-value (if needed).
         if self.g_value == "efe":
             immediate_gval += mathfc.entropy_gaussian(log_var_hat) - mathfc.entropy_gaussian(log_var)
-            immediate_gval = immediate_gval.to(torch.float32)
+        if self.g_value == "rvfe":
+            immediate_gval += self.compute_vfe(config, obs, actions, next_obs)
+        immediate_gval = immediate_gval.to(torch.float32)
 
         # Compute the discounted G values.
         gval = immediate_gval + self.discount_factor * future_gval
