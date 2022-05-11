@@ -59,7 +59,7 @@ class CriticalHMM:
 
         # Optimizers.
         self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
-        self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr)
+        self.efe_optimizer = Optimizers.get_adam([critic], efe_lr)  # TODO encoder,
 
         # Beta scheduling.
         self.n_steps_beta_reset = n_steps_beta_reset
