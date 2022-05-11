@@ -214,6 +214,8 @@ class CHMM_2LS:
             immediate_gval += mathfc.entropy_gaussian(m_log_var) - mathfc.entropy_gaussian(m_log_var_hat)
         elif self.g_value == "efe_3":
             immediate_gval += mathfc.kl_div_gaussian(m_mean, m_log_var, m_mean_hat, m_log_var_hat)
+        elif self.g_value == "rvfe":
+            immediate_gval += torch.log(self.compute_vfe(config, obs, actions, next_obs))
 
         # Compute the discounted G values.
         gval = immediate_gval.to(torch.float32) + self.discount_factor * future_gval
