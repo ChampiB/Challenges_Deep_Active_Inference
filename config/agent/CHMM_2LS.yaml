@@ -12,12 +12,12 @@ _target_: agents.CHMM_2LS.CHMM_2LS
 # Miscellaneous
 n_model_states: 10
 n_reward_states: 5
-vfe_lr: 0.001
+vfe_lr: 0.0001
 efe_lr: 0.0001
 discount_factor: 0.95
 n_steps_between_synchro: 10
 queue_capacity: 50000
 tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CHMM_2LS_${env.name}_${seed}"
-g_value: "rvfe"
+g_value: "befe"
 beta: 1.0 # Parameter trading-off accuracy and complexity
 phi: 5 # Parameter trading-off reward and information gain

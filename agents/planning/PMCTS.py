@@ -87,7 +87,7 @@ class PMCTS:
         best_action = torch.unsqueeze(best_action, dim=0)
         new_state, _ = transition_net(state, best_action)
         cost = critic_net(new_state)
-        pi = softmax(policy_net(new_state), dim=1)  # TODO make sure the policy network does not have a softmax output layer
+        pi = softmax(policy_net(new_state), dim=1)
         new_node = Node(new_state, cost, pi, best_action[0])
 
         # Add the new node in the tree

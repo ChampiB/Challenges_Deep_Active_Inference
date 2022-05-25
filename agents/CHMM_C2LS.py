@@ -17,7 +17,7 @@ import torch
 # - one for reward/efe prediction;
 # - one for modelling the world.
 #
-class CHMM_2LS:
+class CHMM_C2LS:
 
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor, beta, efe_lr,
@@ -245,19 +245,22 @@ class CHMM_2LS:
         # TODO optimize the computation of those vector across efe and vfe computation
         mean_hat, log_var_hat, _, _ = self.encoder(obs)
         states = mathfc.reparameterize(mean_hat, log_var_hat)
-        mean_hat, log_var_hat, _, _ = self.encoder(next_obs)
+        mean_hat, log_var_hat, mean_hat_rs, log_var_hat_rs = self.encoder(next_obs)
         next_state = mathfc.reparameterize(mean_hat, log_var_hat)
         mean, log_var = self.transition(states, actions)
         alpha = self.decoder(next_state)
+        zeros = torch.zeros_like(mean_hat_rs)
 
         # Compute the variational free energy.
         kl_div_hs = mathfc.kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
+        kl_div_rs = mathfc.kl_div_gaussian(mean_hat_rs, log_var_hat_rs, zeros, zeros)
         log_likelihood = mathfc.log_bernoulli_with_logits(next_obs, alpha)
-        vfe_loss = self.beta * kl_div_hs - log_likelihood
+        vfe_loss = self.beta * (kl_div_hs + kl_div_rs) - log_likelihood
 
         # Display debug information, if needed.
         if config["enable_tensorboard"] and self.steps_done % 10 == 0:
             self.writer.add_scalar("KL_div_hs", kl_div_hs, self.steps_done)
+            self.writer.add_scalar("KL_div_rs", kl_div_rs, self.steps_done)
             self.writer.add_scalar("neg_log_likelihood", - log_likelihood, self.steps_done)
             self.writer.add_scalar("Beta", self.beta, self.steps_done)
             self.writer.add_scalar("VFE", vfe_loss, self.steps_done)

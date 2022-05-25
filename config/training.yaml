@@ -1,6 +1,6 @@
 defaults:
   - env: dSprites
-  - agent: CHMM_2LS
+  - agent: CHMM_C2LS
   - _self_
 
 checkpoint:
@@ -15,5 +15,5 @@ enable_tensorboard: true
 n_training_steps: 500000
 buffer_start_size: 50
 batch_size: 50
-seed: 13
+seed: 4242
 nb_envs: 5
