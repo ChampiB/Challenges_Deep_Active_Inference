@@ -18,7 +18,7 @@ n_steps_between_synchro: 10
 queue_capacity: 50000
 tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/${agent.name}_${env.name}_${seed}"
 g_value: "reward"
-efe_loss_update_encoder: True
+efe_loss_update_encoder: False
 
 # Beta scheduling
 beta: 1.0
