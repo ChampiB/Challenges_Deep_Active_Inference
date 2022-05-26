@@ -1,4 +1,4 @@
-name: critical_hmm
+name: chmm
 
 defaults:
   - encoder: convolutional64
@@ -7,7 +7,7 @@ defaults:
   - critic: linearRelu4x100
   - action_selection: epsilonGreedy
 
-_target_: agents.CriticalHMM.CriticalHMM
+_target_: agents.CHMM.CHMM
 
 # Miscellaneous
 n_states: 15

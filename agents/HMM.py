@@ -61,6 +61,7 @@ class HMM:
         self.queue_capacity = queue_capacity
         self.tensorboard_dir = tensorboard_dir
         self.action_selection = action_selection
+        self.total_rewards = 0
 
     def step(self, obs, config):
         """
@@ -109,6 +110,9 @@ class HMM:
                 self.save(config)
 
             # Render the environment.
+            if config["enable_tensorboard"]:
+                self.total_rewards += reward
+                self.writer.add_scalar("Rewards", self.total_rewards, self.steps_done)
             if config["display_gui"]:
                 env.render()
 
@@ -171,10 +175,10 @@ class HMM:
 
         # Display debug information, if needed.
         if config["enable_tensorboard"] and self.steps_done % 10 == 0:
-            self.writer.add_scalar("KL_div_hs", kl_div_hs, self.steps_done)
+            self.writer.add_scalar("kl_div_hs", kl_div_hs, self.steps_done)
             self.writer.add_scalar("neg_log_likelihood", - log_likelihood, self.steps_done)
-            self.writer.add_scalar("Beta", self.beta, self.steps_done)
-            self.writer.add_scalar("VFE", vfe_loss, self.steps_done)
+            self.writer.add_scalar("beta", self.beta, self.steps_done)
+            self.writer.add_scalar("vfe", vfe_loss, self.steps_done)
 
         return vfe_loss
 

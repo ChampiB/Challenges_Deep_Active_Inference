@@ -169,7 +169,6 @@ class CriticalHMM:
 
         # Compute the expected free energy loss.
         efe_loss = self.compute_efe_loss(config, obs, actions, next_obs, done, rewards)
-        print(f"{efe_loss = }")
 
         # Perform one step of gradient descent on the critic network.
         self.efe_optimizer.zero_grad()
@@ -178,7 +177,6 @@ class CriticalHMM:
 
         # Compute the variational free energy.
         vfe_loss = self.compute_vfe(config, obs, actions, next_obs)
-        print(f"{vfe_loss = }")
 
         # Perform one step of gradient descent on the other networks.
         self.vfe_optimizer.zero_grad()
@@ -230,7 +228,13 @@ class CriticalHMM:
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
-        return loss(critic_pred, gval.unsqueeze(1))
+        loss = loss(critic_pred, gval.unsqueeze(1))
+
+        # Display debug information, if needed.
+        if config["enable_tensorboard"] and self.steps_done % 10 == 0:
+            self.writer.add_scalar("efe_loss", loss, self.steps_done)
+        
+        return loss
 
     def compute_vfe(self, config, obs, actions, next_obs):
         """
@@ -258,10 +262,10 @@ class CriticalHMM:
 
         # Display debug information, if needed.
         if config["enable_tensorboard"] and self.steps_done % 10 == 0:
-            self.writer.add_scalar("KL_div_hs", kl_div_hs, self.steps_done)
+            self.writer.add_scalar("kl_div_hs", kl_div_hs, self.steps_done)
             self.writer.add_scalar("neg_log_likelihood", - log_likelihood, self.steps_done)
-            self.writer.add_scalar("Beta", self.beta, self.steps_done)
-            self.writer.add_scalar("VFE", vfe_loss, self.steps_done)
+            self.writer.add_scalar("beta", self.beta, self.steps_done)
+            self.writer.add_scalar("vfe", vfe_loss, self.steps_done)
 
         return vfe_loss
 
