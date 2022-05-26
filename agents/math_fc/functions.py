@@ -87,17 +87,3 @@ def compute_efe(g_value, mean_hat, log_var_hat, mean, log_var, shift=-20):
     elif g_value[0:1] == "b":
         efe = torch.sigmoid(efe + shift)
     return efe
-
-
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=VAE seed=1 env.difficulty="hard"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=HMM seed=1 env.difficulty="hard"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=DQN seed=1 env.difficulty="hard"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=1 env.difficulty="hard" agent.g_value="reward"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=2 env.difficulty="hard" agent.g_value="efe_0"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=3 env.difficulty="hard" agent.g_value="efe_1"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=4 env.difficulty="hard" agent.g_value="efe_2"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=5 env.difficulty="hard" agent.g_value="efe_3"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=6 env.difficulty="hard" agent.g_value="befe_0"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=7 env.difficulty="hard" agent.g_value="befe_1"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=8 env.difficulty="hard" agent.g_value="befe_2"
-# sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=9 env.difficulty="hard" agent.g_value="befe_3"

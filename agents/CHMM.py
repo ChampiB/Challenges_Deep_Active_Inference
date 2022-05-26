@@ -21,7 +21,7 @@ class CHMM:
             self, encoder, decoder, transition, critic, discount_factor,
             n_steps_beta_reset, beta, efe_lr, vfe_lr, beta_starting_step, beta_rate,
             queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
-            action_selection, n_actions=4, steps_done=0, **_
+            action_selection, n_actions=4, steps_done=0, efe_loss_update_encoder=False, **_
     ):
         """
         Constructor
@@ -44,6 +44,7 @@ class CHMM:
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param g_value: the type of value to be used, i.e. "reward" or "efe"
         :param steps_done: the number of training iterations performed to date.
+        :param efe_loss_update_encoder: True if the efe loss must update the weights of the encoder.
         """
 
         # Neural networks.
@@ -59,7 +60,8 @@ class CHMM:
 
         # Optimizers.
         self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
-        self.efe_optimizer = Optimizers.get_adam([critic], efe_lr)  # TODO encoder,
+        self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr) \
+            if efe_loss_update_encoder else Optimizers.get_adam([critic], efe_lr)
 
         # Beta scheduling.
         self.n_steps_beta_reset = n_steps_beta_reset
@@ -80,6 +82,7 @@ class CHMM:
         self.queue_capacity = queue_capacity
         self.action_selection = action_selection
         self.n_actions = n_actions
+        self.efe_loss_update_encoder = efe_loss_update_encoder
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
@@ -320,6 +323,7 @@ class CHMM:
             "queue_capacity": self.queue_capacity,
             "n_steps_between_synchro": self.n_steps_between_synchro,
             "action_selection": dict(self.action_selection),
+            "efe_loss_update_encoder": self.efe_loss_update_encoder
         }, checkpoint_file)
 
     @staticmethod
@@ -349,5 +353,6 @@ class CHMM:
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
             "steps_done": checkpoint["steps_done"],
-            "n_actions": checkpoint["n_actions"]
+            "n_actions": checkpoint["n_actions"],
+            "efe_loss_update_encoder": checkpoint["efe_loss_update_encoder"]
         }
