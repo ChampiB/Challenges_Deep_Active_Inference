@@ -21,3 +21,4 @@ tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CHMM_C2LS_${env.name}_${seed}"
 g_value: "befe"
 beta: 1.0 # Parameter trading-off accuracy and complexity
 phi: 5 # Parameter trading-off reward and information gain
+shift: -20 # Parameter shifting the information gain in the sigmoid function (only used if g_value=="befe" or "bvfe")

@@ -206,22 +206,7 @@ class CHMM_2LS:
         immediate_gval = self.phi * rewards.clone()
 
         # Add information gain to the immediate g-value (if needed).
-        if self.g_value == "efe":
-            immediate_gval += mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
-        elif self.g_value == "efe_1":
-            immediate_gval += mathfc.kl_div_gaussian(m_mean_hat, m_log_var_hat, m_mean, m_log_var)
-        elif self.g_value == "efe_2":
-            immediate_gval += mathfc.entropy_gaussian(m_log_var) - mathfc.entropy_gaussian(m_log_var_hat)
-        elif self.g_value == "efe_3":
-            immediate_gval += mathfc.kl_div_gaussian(m_mean, m_log_var, m_mean_hat, m_log_var_hat)
-        elif self.g_value == "rvfe":
-            immediate_gval += torch.log(self.compute_vfe(config, obs, actions, next_obs))
-        elif self.g_value == "befe":
-            info_gain = mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
-            immediate_gval += torch.sigmoid(info_gain - 20)
-        elif self.g_value == "bvfe":
-            info_gain = mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
-            immediate_gval += torch.sigmoid(info_gain - 20)
+        immediate_gval += mathfc.compute_efe(self.g_value, m_mean_hat, m_log_var_hat, m_mean, m_log_var)
 
         # Compute the discounted G values.
         gval = immediate_gval.to(torch.float32) + self.discount_factor * future_gval

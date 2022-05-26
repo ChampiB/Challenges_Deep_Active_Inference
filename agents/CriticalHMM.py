@@ -169,6 +169,7 @@ class CriticalHMM:
 
         # Compute the expected free energy loss.
         efe_loss = self.compute_efe_loss(config, obs, actions, next_obs, done, rewards)
+        print(f"{efe_loss = }")
 
         # Perform one step of gradient descent on the critic network.
         self.efe_optimizer.zero_grad()
@@ -177,6 +178,7 @@ class CriticalHMM:
 
         # Compute the variational free energy.
         vfe_loss = self.compute_vfe(config, obs, actions, next_obs)
+        print(f"{vfe_loss = }")
 
         # Perform one step of gradient descent on the other networks.
         self.vfe_optimizer.zero_grad()
@@ -203,7 +205,7 @@ class CriticalHMM:
 
         # Compute required vectors.
         mean_hat_t, log_var_hat_t = self.encoder(obs)
-        _, log_var = self.transition(mean_hat_t, actions)
+        mean, log_var = self.transition(mean_hat_t, actions)
         mean_hat, log_var_hat = self.encoder(next_obs)
 
         # Compute the G-values of each action in the current state.
@@ -219,10 +221,7 @@ class CriticalHMM:
         immediate_gval = rewards
 
         # Add information gain to the immediate g-value (if needed).
-        if self.g_value == "efe":
-            immediate_gval += mathfc.entropy_gaussian(log_var_hat) - mathfc.entropy_gaussian(log_var)
-        if self.g_value == "rvfe":
-            immediate_gval += self.compute_vfe(config, obs, actions, next_obs)
+        immediate_gval += mathfc.compute_efe(self.g_value, mean_hat, log_var_hat, mean, log_var)
         immediate_gval = immediate_gval.to(torch.float32)
 
         # Compute the discounted G values.

@@ -5,7 +5,7 @@ _target_: agents.DQN.DQN
 # Miscellaneous
 image_shape: ${images.shape}
 n_actions: ${env.n_actions}
-tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/DQN_${env.name}_${seed}"
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/${agent.name}_${env.name}_${seed}"
 n_steps_between_synchro: 10
 discount_factor: 0.9
 queue_capacity: 10000

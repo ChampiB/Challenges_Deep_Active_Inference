@@ -16,7 +16,7 @@ efe_lr: 0.001
 discount_factor: 0.95
 n_steps_between_synchro: 10
 queue_capacity: 50000
-tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/CriticFixedHMM_${env.name}_${seed}"
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/${agent.name}_${env.name}_${seed}"
 g_value: "efe"  # values: 'efe' or 'reward'
 n_actions: ${env.n_actions}
 

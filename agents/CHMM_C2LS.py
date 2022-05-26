@@ -22,7 +22,7 @@ class CHMM_C2LS:
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor, beta, efe_lr,
             vfe_lr, queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
-            action_selection, phi, steps_done=0, **_
+            action_selection, phi, shift, steps_done=0, **_
     ):
         """
         Constructor
@@ -42,6 +42,8 @@ class CHMM_C2LS:
         :param g_value: the type of value to be used, i.e. "reward" or "efe"
         :param phi: hyper-parameter trading-off reward and information gain
         :param steps_done: the number of training iterations performed to date
+        :param shift: the shift of the information gain in the sigmoid function
+            (only valid if g_value is "befe" or "bvfe")
         """
 
         # Neural networks.
@@ -73,6 +75,7 @@ class CHMM_C2LS:
         self.action_selection = action_selection
         self.beta = beta
         self.phi = phi
+        self.shift = shift
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
@@ -206,22 +209,7 @@ class CHMM_C2LS:
         immediate_gval = self.phi * rewards.clone()
 
         # Add information gain to the immediate g-value (if needed).
-        if self.g_value == "efe":
-            immediate_gval += mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
-        elif self.g_value == "efe_1":
-            immediate_gval += mathfc.kl_div_gaussian(m_mean_hat, m_log_var_hat, m_mean, m_log_var)
-        elif self.g_value == "efe_2":
-            immediate_gval += mathfc.entropy_gaussian(m_log_var) - mathfc.entropy_gaussian(m_log_var_hat)
-        elif self.g_value == "efe_3":
-            immediate_gval += mathfc.kl_div_gaussian(m_mean, m_log_var, m_mean_hat, m_log_var_hat)
-        elif self.g_value == "rvfe":
-            immediate_gval += torch.log(self.compute_vfe(config, obs, actions, next_obs))
-        elif self.g_value == "befe":
-            info_gain = mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
-            immediate_gval += torch.sigmoid(info_gain - 20)
-        elif self.g_value == "bvfe":
-            info_gain = mathfc.entropy_gaussian(m_log_var_hat) - mathfc.entropy_gaussian(m_log_var)
-            immediate_gval += torch.sigmoid(info_gain - 20)
+        immediate_gval += mathfc.compute_efe(self.g_value, m_mean_hat, m_log_var_hat, m_mean, m_log_var, self.shift)
 
         # Compute the discounted G values.
         gval = immediate_gval.to(torch.float32) + self.discount_factor * future_gval
@@ -317,6 +305,7 @@ class CHMM_C2LS:
             "queue_capacity": self.queue_capacity,
             "n_steps_between_synchro": self.n_steps_between_synchro,
             "action_selection": dict(self.action_selection),
+            "shift": self.shift
         }, checkpoint_file)
 
     @staticmethod
@@ -343,7 +332,8 @@ class CHMM_C2LS:
             "g_value": checkpoint["g_value"],
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
-            "steps_done": checkpoint["steps_done"]
+            "steps_done": checkpoint["steps_done"],
+            "shift": checkpoint["shift"]
         }
 
     # TODO

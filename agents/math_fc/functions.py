@@ -61,3 +61,29 @@ def reparameterize(mean, log_var):
     nb_states = mean.shape[1]
     epsilon = MultivariateNormal(zeros(nb_states), eye(nb_states)).sample([mean.shape[0]]).to(Device.get())
     return epsilon * torch.exp(0.5 * log_var) + mean
+
+
+def compute_efe(g_value, mean_hat, log_var_hat, mean, log_var, shift=-20):
+    """
+    Compute the efe.
+    :param g_value: the definition of the efe to use, i.e., reward, efe_0, efe_1,
+        efe_2, efe_3, befe_0, befe_1, befe_2, and befe_3.
+    :param mean_hat: the mean from the encoder.
+    :param log_var_hat: the log variance from the encoder.
+    :param mean: the mean from the transition.
+    :param log_var: the log variance from the transition.
+    :param shift: the shift to apply if efe must be bounded.
+    :return: the efe.
+    """
+    efe = torch.zeros([1])
+    if g_value[-5:] == "efe_0":
+        efe = entropy_gaussian(log_var_hat) - entropy_gaussian(log_var)
+    elif g_value[-5:] == "efe_1":
+        efe = kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
+    elif g_value[-5:] == "efe_2":
+        efe = entropy_gaussian(log_var) - entropy_gaussian(log_var_hat)
+    elif g_value[-5:] == "efe_3":
+        efe = kl_div_gaussian(mean, log_var, mean_hat, log_var_hat)
+    elif g_value[0:1] == "b":
+        efe = torch.sigmoid(efe + shift)
+    return efe

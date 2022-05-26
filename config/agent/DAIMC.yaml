@@ -39,4 +39,4 @@ n_actions: ${env.n_actions}
 efe_deepness: 1
 efe_n_samples: 1
 queue_capacity: 50000
-tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/DAIMC_${env.name}_${seed}"
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/${agent.name}_${env.name}_${seed}"
