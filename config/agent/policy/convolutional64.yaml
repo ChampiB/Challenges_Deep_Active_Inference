@@ -1,0 +1,4 @@
+_target_: agents.networks.PolicyNetworks.ConvPolicy64
+
+images_shape: ${images.shape}
+n_actions: ${env.n_actions}

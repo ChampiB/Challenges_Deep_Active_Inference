@@ -1,5 +1,9 @@
 name: dqn
 
+defaults:
+  - policy: convolutional64
+  - action_selection: epsilonGreedy
+
 _target_: agents.DQN.DQN
 
 # Miscellaneous

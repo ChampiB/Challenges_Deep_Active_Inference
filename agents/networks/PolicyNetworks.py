@@ -37,12 +37,12 @@ class PolicyNetwork(nn.Module):
 #
 # Implement the policy network that compute the q-values.
 #
-class ConvPolicy(nn.Module):
+class ConvPolicy64(nn.Module):
 
-    def __init__(self, image_shape, n_actions):
+    def __init__(self, images_shape, n_actions):
         """
         Constructor.
-        :param image_shape: the shape of the input images.
+        :param images_shape: the shape of the input images.
         :param n_actions: the number of actions.
         """
 
@@ -50,7 +50,7 @@ class ConvPolicy(nn.Module):
 
         # Create convolutional part of the policy network.
         self.__conv_net = nn.Sequential(
-            nn.Conv2d(image_shape[0], 32, (3, 3), stride=(2, 2), padding=1),
+            nn.Conv2d(images_shape[0], 32, (3, 3), stride=(2, 2), padding=1),
             nn.ReLU(),
             nn.Conv2d(32, 32, (3, 3), stride=(1, 1), padding=1),
             nn.ReLU(),
@@ -59,7 +59,7 @@ class ConvPolicy(nn.Module):
             nn.Conv2d(64, 64, (3, 3), stride=(2, 2), padding=1),
             nn.ReLU(),
         )
-        self.__conv_output_shape = self.__conv_output_shape(image_shape)
+        self.__conv_output_shape = self.__conv_output_shape(images_shape)
         self.__conv_output_shape = self.__conv_output_shape[1:]
         conv_output_size = prod(self.__conv_output_shape)
 
@@ -79,15 +79,15 @@ class ConvPolicy(nn.Module):
             self.__linear_net
         )
 
-    def __conv_output_shape(self, image_shape):
+    def __conv_output_shape(self, images_shape):
         """
         Compute the shape of the features output by the convolutional encoder.
-        :param image_shape: the shape of the input image.
+        :param images_shape: the shape of the input image.
         :return: the shape of the features output by the convolutional encoder.
         """
-        image_shape = list(image_shape)
-        image_shape.insert(0, 1)
-        input_image = zeros(image_shape)
+        images_shape = list(images_shape)
+        images_shape.insert(0, 1)
+        input_image = zeros(images_shape)
         return self.__conv_net(input_image).shape
 
     def forward(self, x):

@@ -197,6 +197,26 @@ class Checkpoint:
         return critic
 
     @staticmethod
+    def load_policy(checkpoint, training_mode):
+        """
+        Load the policy from the checkpoint.
+        :param checkpoint: the checkpoint.
+        :param training_mode: True if the agent is being loaded for training, False otherwise.
+        :return: the policy.
+        """
+        # Load critic network.
+        policy_module = importlib.import_module(checkpoint["policy_net_module"])
+        policy_class = getattr(policy_module, checkpoint["policy_net_class"])
+        policy = policy_class(
+            images_shape=checkpoint["images_shape"], n_actions=checkpoint["n_actions"]
+        )
+        policy.load_state_dict(checkpoint["policy_net_state_dict"])
+
+        # Set the training mode of the critic.
+        Checkpoint.set_training_mode(policy, training_mode)
+        return policy
+
+    @staticmethod
     def load_object_from_dictionary(checkpoint, key):
         """
         Load the action selection strategy from the checkpoint.
