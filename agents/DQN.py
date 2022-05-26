@@ -209,7 +209,7 @@ class DQN:
         # For each batch entry where the simulation did not stop, compute
         # the value of the next states, i.e. V(s_{t+1}). Those values are computed
         # using the target network.
-        future_values = torch.zeros(config["batch_size"])
+        future_values = torch.zeros(config["batch_size"]).to(Device.get())
         future_values[torch.logical_not(done)] = self.target_net(next_obs[torch.logical_not(done)]).max(1)[0]
         future_values = future_values.detach()
 

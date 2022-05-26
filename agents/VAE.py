@@ -68,7 +68,8 @@ class VAE:
         :param config: unused
         :return: the action to be performed
         """
-        return self.action_selection.select(None, 0)
+        quality = torch.zeros(config["env"]["n_actions"]).to(Device.get())
+        return self.action_selection.select(quality, self.steps_done)
 
     def train(self, env, config):
         """

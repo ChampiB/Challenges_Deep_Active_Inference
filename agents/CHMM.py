@@ -15,7 +15,7 @@ import torch
 #
 # Implement a Critical HMM able to evaluate the qualities of each action.
 #
-class CriticalHMM:
+class CHMM:
 
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor,
@@ -233,7 +233,7 @@ class CriticalHMM:
         # Display debug information, if needed.
         if config["enable_tensorboard"] and self.steps_done % 10 == 0:
             self.writer.add_scalar("efe_loss", loss, self.steps_done)
-        
+
         return loss
 
     def compute_vfe(self, config, obs, actions, next_obs):
