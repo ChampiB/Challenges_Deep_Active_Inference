@@ -75,7 +75,7 @@ def compute_efe(g_value, mean_hat, log_var_hat, mean, log_var, shift=-20):
     :param shift: the shift to apply if efe must be bounded.
     :return: the efe.
     """
-    efe = torch.zeros([1])
+    efe = torch.zeros([1]).to(Device.get())
     if g_value[-5:] == "efe_0":
         efe = entropy_gaussian(log_var_hat) - entropy_gaussian(log_var)
     elif g_value[-5:] == "efe_1":
