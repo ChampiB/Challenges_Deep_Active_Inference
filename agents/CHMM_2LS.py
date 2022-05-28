@@ -22,7 +22,7 @@ class CHMM_2LS:
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor, beta, efe_lr,
             vfe_lr, queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
-            action_selection, phi, steps_done=0, **_
+            action_selection, phi, efe_loss_update_encoder=False, steps_done=0, **_
     ):
         """
         Constructor
@@ -42,6 +42,7 @@ class CHMM_2LS:
         :param g_value: the type of value to be used, i.e. "reward" or "efe"
         :param phi: hyper-parameter trading-off reward and information gain
         :param steps_done: the number of training iterations performed to date
+        :param efe_loss_update_encoder: True if the efe loss must update the weights of the encoder.
         """
 
         # Neural networks.
@@ -57,7 +58,8 @@ class CHMM_2LS:
 
         # Optimizers.
         self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
-        self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr)
+        self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr) \
+            if efe_loss_update_encoder else Optimizers.get_adam([critic], efe_lr)
 
         # Miscellaneous.
         self.total_rewards = 0.0

@@ -23,3 +23,33 @@ sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=15 env.diffic
 sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=16 env.difficulty="hard" agent.g_value="befe_1" agent.efe_loss_update_encoder=True
 sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=17 env.difficulty="hard" agent.g_value="befe_2" agent.efe_loss_update_encoder=True
 sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM seed=18 env.difficulty="hard" agent.g_value="befe_3" agent.efe_loss_update_encoder=True
+
+
+
+
+
+
+
+
+
+
+
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=19 env.difficulty="hard" agent.g_value="reward"
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=20 env.difficulty="hard" agent.g_value="efe_0"
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=21 env.difficulty="hard" agent.g_value="efe_1"
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=22 env.difficulty="hard" agent.g_value="efe_2"
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=23 env.difficulty="hard" agent.g_value="efe_3"
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=24 env.difficulty="hard" agent.g_value="befe_0"
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=25 env.difficulty="hard" agent.g_value="befe_1"
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=26 env.difficulty="hard" agent.g_value="befe_2"
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=27 env.difficulty="hard" agent.g_value="befe_3"
+
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=28 env.difficulty="hard" agent.g_value="reward" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=29 env.difficulty="hard" agent.g_value="efe_0" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=30 env.difficulty="hard" agent.g_value="efe_1" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=31 env.difficulty="hard" agent.g_value="efe_2" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=32 env.difficulty="hard" agent.g_value="efe_3" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=33 env.difficulty="hard" agent.g_value="befe_0" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=34 env.difficulty="hard" agent.g_value="befe_1" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=35 env.difficulty="hard" agent.g_value="befe_2" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres=gpu env_training.sh agent=CHMM_2LS seed=36 env.difficulty="hard" agent.g_value="befe_3" agent.efe_loss_update_encoder=True

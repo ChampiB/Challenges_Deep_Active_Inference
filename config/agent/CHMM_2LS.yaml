@@ -19,5 +19,6 @@ n_steps_between_synchro: 10
 queue_capacity: 50000
 tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/${agent.name}_${env.name}_${seed}"
 g_value: "befe"
+efe_loss_update_encoder: False
 beta: 1.0 # Parameter trading-off accuracy and complexity
 phi: 5 # Parameter trading-off reward and information gain
