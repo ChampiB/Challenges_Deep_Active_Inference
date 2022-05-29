@@ -231,7 +231,7 @@ class CHMM:
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
-        loss = loss(critic_pred, gval.unsqueeze(1))
+        loss = loss(critic_pred, gval.unsqueeze(dim=1))
 
         # Display debug information, if needed.
         if config["enable_tensorboard"] and self.steps_done % 10 == 0:

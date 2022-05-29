@@ -212,11 +212,17 @@ class CHMM_2LS:
 
         # Compute the discounted G values.
         gval = immediate_gval.to(torch.float32) + self.discount_factor * future_gval
-        gval = gval.unsqueeze(dim=1).detach()
+        gval = gval.detach()
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
-        return loss(critic_pred, gval)
+        loss = loss(critic_pred, gval.unsqueeze(dim=1))
+
+        # Display debug information, if needed.
+        if config["enable_tensorboard"] and self.steps_done % 10 == 0:
+            self.writer.add_scalar("efe_loss", loss, self.steps_done)
+
+        return loss
 
     def compute_vfe(self, config, obs, actions, next_obs):
         """
