@@ -244,10 +244,10 @@ class CHMM_2LS:
 
         # Display debug information, if needed.
         if config["enable_tensorboard"] and self.steps_done % 10 == 0:
-            self.writer.add_scalar("KL_div_hs", kl_div_hs, self.steps_done)
+            self.writer.add_scalar("kl_div_hs", kl_div_hs, self.steps_done)
             self.writer.add_scalar("neg_log_likelihood", - log_likelihood, self.steps_done)
-            self.writer.add_scalar("Beta", self.beta, self.steps_done)
-            self.writer.add_scalar("VFE", vfe_loss, self.steps_done)
+            self.writer.add_scalar("beta", self.beta, self.steps_done)
+            self.writer.add_scalar("vfe", vfe_loss, self.steps_done)
 
         return vfe_loss
 
