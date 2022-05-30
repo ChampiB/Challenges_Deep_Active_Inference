@@ -1,4 +1,4 @@
-name: chmm_c2ls
+name: chmm_cn2ls
 
 defaults:
   - encoder: convolutional64_2ls
@@ -7,7 +7,7 @@ defaults:
   - critic: linearRelu4x100_2ls
   - action_selection: epsilonGreedy
 
-_target_: agents.CHMM_C2LS.CHMM_C2LS
+_target_: agents.CHMM_CN2LS.CHMM_CN2LS
 
 # Miscellaneous
 n_model_states: 10

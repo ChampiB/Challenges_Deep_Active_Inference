@@ -10,6 +10,7 @@ import agents.math_fc.functions as mathfc
 from singletons.Device import Device
 from torch import nn, unsqueeze
 import torch
+import math
 
 
 #
@@ -17,7 +18,7 @@ import torch
 # - one for reward/efe prediction;
 # - one for modelling the world.
 #
-class CHMM_C2LS:
+class CHMM_CN2LS:
 
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor, beta, efe_lr,
@@ -76,6 +77,7 @@ class CHMM_C2LS:
         self.beta = beta
         self.phi = phi
         self.shift = shift
+        self.rs = RunningStat()
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
@@ -167,9 +169,10 @@ class CHMM_C2LS:
         efe_loss = self.compute_efe_loss(config, obs, actions, next_obs, done, rewards)
 
         # Perform one step of gradient descent on the critic network.
-        self.efe_optimizer.zero_grad()
-        efe_loss.backward()
-        self.efe_optimizer.step()
+        if efe_loss is not None:
+            self.efe_optimizer.zero_grad()
+            efe_loss.backward()
+            self.efe_optimizer.step()
 
         # Compute the variational free energy.
         vfe_loss = self.compute_vfe(config, obs, actions, next_obs)
@@ -214,6 +217,17 @@ class CHMM_C2LS:
         # Compute the discounted G values.
         gval = immediate_gval.to(torch.float32) + self.discount_factor * future_gval
         gval = gval.detach()
+
+        # Compute the mean and standard deviation of the efe.
+        self.rs.push(gval)
+
+        # Normalise g values.
+        mean = self.rs.mean()
+        std = self.rs.standard_deviation()
+        if mean is None or std is None:
+            return None
+        gval -= mean
+        gval /= std
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
@@ -419,3 +433,50 @@ class CHMM_C2LS:
 
         # Close the environment.
         env.close()
+
+
+class RunningStat:
+    """
+    A class used to compute the running mean, variance, and standard deviation.
+    """
+
+    def __init__(self):
+        """
+        Construct the class used to track the meanm variance and standard deviation.
+        """
+        self.n = 0
+        self.oldM = None
+        self.newM = None
+        self.oldS = None
+        self.newS = None
+
+    def push(self, x):
+        self.n += 1
+
+        # See Knuth TAOCP vol 2, 3 rd edition, page 232
+        if self.n == 1:
+            self.oldM = x
+            self.newM = x
+            self.oldS = torch.zeros_like(x)
+        else:
+            self.newM = self.oldM + (x - self.oldM) / self.n
+            self.newS = self.oldS + (x - self.oldM) * (x - self.newM)
+
+            # set up for next iteration
+            self.oldM = self.newM
+            self.oldS = self.newS
+
+    def num_data_values(self):
+        return self.n
+
+    def mean(self):
+        return self.newM if self.n > 0 else None
+
+    def variance(self):
+        return self.newS / (self.n - 1) if self.n > 1 else None
+
+    def standard_deviation(self):
+        var = self.variance()
+        if var is None:
+            return None
+        return torch.sqrt(var)
