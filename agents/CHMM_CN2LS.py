@@ -457,7 +457,7 @@ class RunningStat:
         if self.n == 1:
             self.oldM = x
             self.newM = x
-            self.oldS = torch.zeros_like(x)
+            self.oldS = torch.zeros_like(x).to(Device.get())
         else:
             self.newM = self.oldM + (x - self.oldM) / self.n
             self.newS = self.oldS + (x - self.oldM) * (x - self.newM)
