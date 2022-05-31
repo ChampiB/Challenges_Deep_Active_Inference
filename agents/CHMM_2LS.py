@@ -73,6 +73,7 @@ class CHMM_2LS:
         self.tensorboard_dir = tensorboard_dir
         self.queue_capacity = queue_capacity
         self.action_selection = action_selection
+        self.efe_loss_update_encoder = efe_loss_update_encoder
         self.beta = beta
         self.phi = phi
 
@@ -307,6 +308,7 @@ class CHMM_2LS:
             "queue_capacity": self.queue_capacity,
             "n_steps_between_synchro": self.n_steps_between_synchro,
             "action_selection": dict(self.action_selection),
+            "efe_loss_update_encoder": self.efe_loss_update_encoder,
         }, checkpoint_file)
 
     @staticmethod
@@ -333,7 +335,8 @@ class CHMM_2LS:
             "g_value": checkpoint["g_value"],
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
-            "steps_done": checkpoint["steps_done"]
+            "steps_done": checkpoint["steps_done"],
+            "efe_loss_update_encoder": checkpoint["efe_loss_update_encoder"],
         }
 
     # TODO

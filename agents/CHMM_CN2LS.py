@@ -23,7 +23,7 @@ class CHMM_CN2LS:
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor, beta, efe_lr,
             vfe_lr, queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
-            action_selection, phi, shift, steps_done=0, **_
+            action_selection, phi, shift, efe_loss_update_encoder=False, steps_done=0, **_
     ):
         """
         Constructor
@@ -45,6 +45,7 @@ class CHMM_CN2LS:
         :param steps_done: the number of training iterations performed to date
         :param shift: the shift of the information gain in the sigmoid function
             (only valid if g_value is "befe" or "bvfe")
+        :param efe_loss_update_encoder: True if the efe loss must update the weights of the encoder.
         """
 
         # Neural networks.
@@ -60,7 +61,8 @@ class CHMM_CN2LS:
 
         # Optimizers.
         self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
-        self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr)
+        self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr) \
+            if efe_loss_update_encoder else Optimizers.get_adam([critic], efe_lr)
 
         # Miscellaneous.
         self.total_rewards = 0.0
@@ -74,6 +76,7 @@ class CHMM_CN2LS:
         self.tensorboard_dir = tensorboard_dir
         self.queue_capacity = queue_capacity
         self.action_selection = action_selection
+        self.efe_loss_update_encoder = efe_loss_update_encoder
         self.beta = beta
         self.phi = phi
         self.shift = shift
@@ -328,7 +331,8 @@ class CHMM_CN2LS:
             "queue_capacity": self.queue_capacity,
             "n_steps_between_synchro": self.n_steps_between_synchro,
             "action_selection": dict(self.action_selection),
-            "shift": self.shift
+            "shift": self.shift,
+            "efe_loss_update_encoder": self.efe_loss_update_encoder,
         }, checkpoint_file)
 
     @staticmethod
@@ -356,7 +360,8 @@ class CHMM_CN2LS:
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
             "steps_done": checkpoint["steps_done"],
-            "shift": checkpoint["shift"]
+            "shift": checkpoint["shift"],
+            "efe_loss_update_encoder": checkpoint["efe_loss_update_encoder"],
         }
 
     # TODO
