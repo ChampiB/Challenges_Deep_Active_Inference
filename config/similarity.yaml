@@ -1,0 +1,21 @@
+n_samples: 10000
+
+agent1_name: dqn
+agent1_seed: 0
+agent2_name: daimc
+agent2_seed: 0
+
+m1_path: ${oc.env:DATA_DIRECTORY}/${env.name}/${agent1_name}/${agent1_seed}/model.pt
+m2_path: ${oc.env:DATA_DIRECTORY}/${env.name}/${agent2_name}/${agent2_seed}/model.pt
+
+hydra:
+  run:
+    dir: ${oc.env:DATA_DIRECTORY}/${env.name}/${hydra.job.name}/${agent1_name}/${agent1_seed}/${agent2_name}/${agent2_seed}
+  sweep:
+    dir: ${oc.env:DATA_DIRECTORY}/${env.name}/${hydra.job.name}/${agent1_name}/${agent1_seed}/${agent2_name}
+    subdir: ${agent2_seed}
+  job:
+    config:
+      override_dirname:
+        kv_sep: _
+        item_sep: /
