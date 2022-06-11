@@ -26,8 +26,10 @@ def kl_div_gaussian(mean_hat, log_var_hat, mean, log_var, sum_dims=None):
     :param sum_dims: the dimensions along which to sum over before to return, by default all of them
     :return: the KL-divergence between the two Gaussian distributions
     """
-    var = torch.clamp(log_var, max=10).exp()  # Clamp to avoid overflow of exponential
-    var_hat = torch.clamp(log_var_hat, max=10).exp()  # Clamp to avoid overflow of exponential
+    var = log_var.exp()  # Clamp to avoid overflow of exponential
+    var_hat = log_var_hat.exp()  # Clamp to avoid overflow of exponential
+    # TODO var = torch.clamp(log_var, max=10).exp()  # Clamp to avoid overflow of exponential
+    # TODO var_hat = torch.clamp(log_var_hat, max=10).exp()  # Clamp to avoid overflow of exponential
     kl_div = log_var - log_var_hat + var_hat / var + (mean_hat - mean) ** 2 / var
 
     if sum_dims is None:
