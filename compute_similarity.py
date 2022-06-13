@@ -1,11 +1,38 @@
+from environments import EnvFactory
 import logging
 import hydra
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, open_dict
+from environments.wrappers.DefaultWrappers import DefaultWrappers
 from representational_similarity.cka import CKA
 from representational_similarity.utils import get_activations, prepare_activations, save_figure
 import pandas as pd
+import numpy as np
 import seaborn as sns
+from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 logger = logging.getLogger("similarity_metric")
+
+
+def get_batch(batch_size, env, capacity=50000):
+    """
+    Collect a batch from the environment.
+    :param batch_size: the size of the batch to be generated.
+    :param env: the environment from which the samples need to be generated.
+    :param capacity: the maximum capacity of the queue.
+    :return: the generated batch.
+    """
+
+    # Create a replay buffer.
+    buffer = ReplayBuffer(capacity=capacity)
+
+    # Generates some experiences.
+    for i in range(0, capacity):
+        obs = env.reset()
+        action = np.random.choice(env.action_space.n)
+        next_obs, reward, done, _ = env.step(action)
+        buffer.append(Experience(obs, action, reward, done, next_obs))
+
+    # Sample a batch from the replay buffer.
+    return buffer.sample(batch_size)
 
 
 def compute_similarity_metric(model1, model2, samples, save_path):
@@ -34,9 +61,24 @@ def compute_similarity_metric(model1, model2, samples, save_path):
 
 @hydra.main(config_path="config", config_name="similarity")
 def compute_sim(cfg):
+    # Display the configuration.
     logger.info("Experiment config:\n{}".format(OmegaConf.to_yaml(cfg)))
     save_path = "CKA_{}_{}.tsv".format(cfg.agent1_name, cfg.agent2_name)
-    # TODO: Check how to randomly sample cfg.n_samples from a given dataset
+
+    # Create the environment.
+    env = EnvFactory.make(cfg)
+    with open_dict(cfg):
+        cfg.env.n_actions = env.action_space.n
+    env = DefaultWrappers.apply(env, cfg["images"]["shape"])
+
+    # Sample a batch of experiences.
+    obs, actions, rewards, done, next_obs = get_batch(batch_size=5000, env=env)  # TODO pick what you need
+    print(obs.shape)  # TODO remove
+    print(actions.shape)  # TODO remove
+    print(rewards.shape)  # TODO remove
+    print(done.shape)  # TODO remove
+    print(next_obs.shape)  # TODO remove
+
     # This would be equivalent to vae_ld's following code
     # dataset = instantiate(cfg.dataset)
     # samples = dataset.sample(cfg.n_samples, random_state, unique=True)[1]
@@ -48,4 +90,8 @@ def compute_sim(cfg):
 
 
 if __name__ == "__main__":
+    # Make hydra able to load tuples.
+    OmegaConf.register_new_resolver("tuple", lambda *args: tuple(args))
+
+    # Compute the similarity between the layers of two agents.
     compute_sim()

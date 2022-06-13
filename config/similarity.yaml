@@ -1,5 +1,11 @@
 n_samples: 10000
 
+defaults:
+  - env: dSprites
+
+images:
+  shape: ${tuple:1,64,64}
+
 agent1_name: dqn
 agent1_seed: 0
 agent2_name: daimc
