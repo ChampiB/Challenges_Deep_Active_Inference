@@ -1,10 +1,11 @@
+from agents.save.Checkpoint import Checkpoint
 from environments import EnvFactory
 import logging
 import hydra
 from omegaconf import OmegaConf, open_dict
 from environments.wrappers.DefaultWrappers import DefaultWrappers
 from representational_similarity.cka import CKA
-from representational_similarity.utils import get_activations, prepare_activations, save_figure
+from representational_similarity.utils import get_activations, prepare_activations, save_figure, select_and_get_layers
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -63,29 +64,19 @@ def compute_similarity_metric(model1, model2, samples, save_path):
 def compute_sim(cfg):
     # Display the configuration.
     logger.info("Experiment config:\n{}".format(OmegaConf.to_yaml(cfg)))
-    save_path = "CKA_{}_{}.tsv".format(cfg.agent1_name, cfg.agent2_name)
+    save_path = "CKA_{}_{}.tsv".format(cfg.a1_name, cfg.a2_name)
 
     # Create the environment.
     env = EnvFactory.make(cfg)
     with open_dict(cfg):
         cfg.env.n_actions = env.action_space.n
-    env = DefaultWrappers.apply(env, cfg["images"]["shape"])
+    env = DefaultWrappers.apply(env, cfg.images.shape)
 
     # Sample a batch of experiences.
-    obs, actions, rewards, done, next_obs = get_batch(batch_size=5000, env=env)  # TODO pick what you need
-    print(obs.shape)  # TODO remove
-    print(actions.shape)  # TODO remove
-    print(rewards.shape)  # TODO remove
-    print(done.shape)  # TODO remove
-    print(next_obs.shape)  # TODO remove
+    samples, actions, rewards, done, next_obs = get_batch(batch_size=5000, env=env)  # TODO pick what you need
 
-    # This would be equivalent to vae_ld's following code
-    # dataset = instantiate(cfg.dataset)
-    # samples = dataset.sample(cfg.n_samples, random_state, unique=True)[1]
-    samples = None
-    # TODO: Check how to load the models
-    m1 = None
-    m2 = None
+    m1 = Checkpoint(cfg.a1_tensorboard_dir, cfg.a1_path).load_model()
+    m2 = Checkpoint(cfg.a2_tensorboard_dir, cfg.a2_path).load_model()
     compute_similarity_metric(m1, m2, samples, save_path)
 
 

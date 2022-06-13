@@ -2,24 +2,28 @@ n_samples: 10000
 
 defaults:
   - env: dSprites
+  - _self_
 
 images:
   shape: ${tuple:1,64,64}
 
-agent1_name: dqn
-agent1_seed: 0
-agent2_name: daimc
-agent2_seed: 0
+a1_name: dqn
+a1_seed: 1
+a1_path: ${oc.env:DATA_DIRECTORY}/${env.name}/${a1_name}/${a1_seed}/model.pt
+a1_tensorboard_dir: ${oc.env:DATA_DIRECTORY}/runs/${a1_name}_${env.name}_${a1_seed}
 
-m1_path: ${oc.env:DATA_DIRECTORY}/${env.name}/${agent1_name}/${agent1_seed}/model.pt
-m2_path: ${oc.env:DATA_DIRECTORY}/${env.name}/${agent2_name}/${agent2_seed}/model.pt
+a2_name: vae
+a2_seed: 1
+a2_path: ${oc.env:DATA_DIRECTORY}/${env.name}/${a2_name}/${a2_seed}/model.pt
+a2_tensorboard_dir: ${oc.env:DATA_DIRECTORY}/runs/${a2_name}_${env.name}_${a2_seed}
+
 
 hydra:
   run:
-    dir: ${oc.env:DATA_DIRECTORY}/${env.name}/${hydra.job.name}/${agent1_name}/${agent1_seed}/${agent2_name}/${agent2_seed}
+    dir: ${oc.env:DATA_DIRECTORY}/${env.name}/${hydra.job.name}/${a1_name}/${a1_seed}/${a2_name}/${a2_seed}
   sweep:
-    dir: ${oc.env:DATA_DIRECTORY}/${env.name}/${hydra.job.name}/${agent1_name}/${agent1_seed}/${agent2_name}
-    subdir: ${agent2_seed}
+    dir: ${oc.env:DATA_DIRECTORY}/${env.name}/${hydra.job.name}/${a1_name}/${a1_seed}/${a2_name}
+    subdir: ${a2_seed}
   job:
     config:
       override_dirname:

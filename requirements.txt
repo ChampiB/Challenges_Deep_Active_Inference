@@ -9,3 +9,4 @@ ttkthemes
 hydra
 pandas~=1.4.2
 seaborn~=0.11.2
+tensorboard

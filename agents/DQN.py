@@ -202,6 +202,13 @@ class DQN:
 
         return loss
 
+    def predict(self, obs):
+        """
+        Do one forward pass using given observation.
+        :return: the outputs of the policy network
+        """
+        return self.policy(obs)
+
     #
     # Saving and reloading the model.
     #

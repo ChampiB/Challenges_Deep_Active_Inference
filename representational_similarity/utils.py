@@ -1,5 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from torch import nn
+
+from agents import DQN, CHMM
+from agents.layers.DiagonalGaussian import DiagonalGaussian
+from representational_similarity import logger
 
 
 def get_activation(name, activation):
@@ -18,14 +23,14 @@ def get_activations(data, model):
     """
     activations = {}
     hooks = []
+    layers_info = select_and_get_layers(model)
 
-    # TODO: model.get_layers() needs to be updated to the correct pytorch equivalent
     # Register forward hooks to get the activations of all the layers
-    for name, layer in model.get_layers():
+    for name, layer in layers_info:
         hooks.append(layer.register_forward_hook(get_activation(name, activations)))
 
-    # Store the activations using the hooks during the forward pass
-    model(data)
+    model.predict(data)
+    logger.debug("Activations obtained after prediction: {}".format(activations))
 
     # Remove the hooks
     for hook in hooks:
@@ -45,7 +50,7 @@ def prepare_activations(x):
         x = x.reshape(x.shape[0], np.prod(x.shape[1:]))
     # Prevent very tiny values from causing underflow in similarity metrics later on
     x[abs(x) < 1.e-7] = 0.
-    return x
+    return np.array(x)
 
 
 def save_figure(out_fname, dpi=300, tight=True):
@@ -61,3 +66,30 @@ def save_figure(out_fname, dpi=300, tight=True):
     plt.clf()
     plt.cla()
     plt.close()
+
+
+def select_and_get_layers(model):
+    layers_info = []
+    # TODO: update this part with DAI when DAI is implemented
+    if not isinstance(model, DQN.DQN):
+        curr_layers_info, _ = get_layers(list(model.encoder.modules())[-1], "Encoder")
+        layers_info += curr_layers_info
+    if isinstance(model, CHMM.CHMM):  # or isinstance(model, DAI)
+        curr_layers_info, _ = get_layers(list(model.critic.modules())[-1], "Critic")
+        layers_info += curr_layers_info
+    if isinstance(model, DQN.DQN):  # or isinstance(model, DAI)
+        curr_layers_info, _ = get_layers(list(model.policy.modules())[-1], "Policy")
+        layers_info += curr_layers_info
+    logger.debug("Found layers {}".format(layers_info))
+    return layers_info
+
+
+def get_layers(model, prefix, i=1):
+    layers_info = []
+    # Get the layers at the current level and annotate them with a generic name
+    for module in model.modules():
+        if not isinstance(module, nn.Sequential) and not isinstance(module, DiagonalGaussian):
+            layers_info.append(("{}_{}".format(prefix, i), module))
+            i += 1
+    return layers_info, i
+

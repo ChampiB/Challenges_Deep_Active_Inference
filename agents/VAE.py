@@ -178,6 +178,13 @@ class VAE:
 
         return vfe_loss
 
+    def predict(self, obs):
+        """
+        Do one forward pass using given observation.
+        :return: the outputs of the encoder
+        """
+        return self.encoder(obs)
+
     def save(self, config):
         """
         Create a checkpoint file allowing the agent to be reloaded later
