@@ -8,21 +8,20 @@ from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 import agents.math_fc.functions as mathfc
 from singletons.Device import Device
-from torch import nn, unsqueeze, softmax
+from torch import nn, unsqueeze
 import torch
 
 
 #
-# Implement a Critical HMM able to evaluate the qualities of each action.
-# At test time, this agent performs a Monte Carlo tree search to select the next action.
+# Implement a DAI agent able to evaluate the qualities of each action.
 #
-class CHMM_TS:
+class DAI:
 
     def __init__(
-            self, encoder, decoder, transition, critic, planning, discount_factor,
+            self, encoder, decoder, transition, critic, policy, discount_factor,
             n_steps_beta_reset, beta, efe_lr, vfe_lr, beta_starting_step, beta_rate,
             queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
-            action_selection, n_actions=4, steps_done=0, **_
+            action_selection, n_actions=4, steps_done=0, efe_loss_update_encoder=False, **_
     ):
         """
         Constructor
@@ -30,7 +29,7 @@ class CHMM_TS:
         :param decoder: the decoder network
         :param transition: the transition network
         :param critic: the critic network
-        :param planning: the planning algorithm to use
+        :param policy: the policy network
         :param action_selection: the action selection to be used
         :param n_actions: the number of actions
         :param discount_factor: the factor by which the future EFE is discounted.
@@ -46,6 +45,7 @@ class CHMM_TS:
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param g_value: the type of value to be used, i.e. "reward" or "efe"
         :param steps_done: the number of training iterations performed to date.
+        :param efe_loss_update_encoder: True if the efe loss must update the weights of the encoder.
         """
 
         # Neural networks.
@@ -55,16 +55,15 @@ class CHMM_TS:
         self.critic = critic
         self.target = copy.deepcopy(self.critic)
         self.target.eval()
+        self.policy = policy
 
         # Ensure models are on the right device.
-        Device.send([self.encoder, self.decoder, self.transition, self.critic, self.target])
+        Device.send([self.encoder, self.decoder, self.transition, self.critic, self.target, self.policy])
 
         # Optimizers.
-        self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
-        self.efe_optimizer = Optimizers.get_adam([critic], efe_lr)
-
-        # Planning algorithm.
-        self.mcts = planning
+        self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition, policy], vfe_lr)
+        self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr) \
+            if efe_loss_update_encoder else Optimizers.get_adam([critic], efe_lr)
 
         # Beta scheduling.
         self.n_steps_beta_reset = n_steps_beta_reset
@@ -85,80 +84,12 @@ class CHMM_TS:
         self.queue_capacity = queue_capacity
         self.action_selection = action_selection
         self.n_actions = n_actions
+        self.efe_loss_update_encoder = efe_loss_update_encoder
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
 
-    def step_test(self, obs, config):
-        """
-        Select a random action based on the critic ouput
-        :param obs: the input observation from which decision should be made
-        :param config: the hydra configuration
-        :return: the random action
-        """
-
-        # Extract the current state from the current observation.
-        obs = torch.unsqueeze(obs, dim=0)
-        state, _ = self.encoder(obs)
-
-        # Reset MCTS algorithm
-        pi = softmax(self.critic(state), dim=1)
-        cost = self.critic(state)
-        self.mcts.reset(state, cost, pi)
-
-        # Planning.
-        for i in range(self.mcts.max_planning_steps):
-            s_node = self.mcts.select_node()
-            e_node = self.mcts.expand_and_evaluate(s_node, self.transition, self.critic, self.critic)
-            self.mcts.back_propagate(e_node)
-
-        # Select the action to perform in the environment.
-        return self.mcts.select_action()
-
-    def test(self, env, config):
-        """
-        Test the agent in the gym environment passed as parameters
-        :param env: the gym environment
-        :param config: the hydra configuration
-        :return: nothing
-        """
-
-        # Retrieve the initial observation from the environment.
-        obs = env.reset()
-
-        # Render the environment (if needed).
-        if config["display_gui"]:
-            env.render()
-
-        # Train the agent.
-        Logger.get().info("Start the testing at {time}".format(time=datetime.now()))
-        self.steps_done = 0
-        while self.steps_done < config["n_testing_steps"]:
-
-            # Select an action.
-            action = self.step_test(obs, config)
-
-            # Execute the action in the environment.
-            obs, reward, done, _ = env.step(action)
-
-            # Render the environment and monitor total rewards (if needed).
-            if config["enable_tensorboard"]:
-                self.total_rewards += reward
-                self.writer.add_scalar("Rewards", self.total_rewards, self.steps_done)
-            if config["display_gui"]:
-                env.render()
-
-            # Reset the environment when a trial ends.
-            if done:
-                obs = env.reset()
-
-            # Increase the number of steps done.
-            self.steps_done += 1
-
-        # Close the environment.
-        env.close()
-
-    def step_train(self, obs, config):
+    def step(self, obs, config):
         """
         Select a random action based on the critic ouput
         :param obs: the input observation from which decision should be made
@@ -171,7 +102,7 @@ class CHMM_TS:
         state, _ = self.encoder(obs)
 
         # Select an action.
-        return self.action_selection.select(self.critic(state), self.steps_done)
+        return self.action_selection.select(self.policy(state), self.steps_done)
 
     def train(self, env, config):
         """
@@ -193,7 +124,7 @@ class CHMM_TS:
         while self.steps_done < config["n_training_steps"]:
 
             # Select an action.
-            action = self.step_train(obs, config)
+            action = self.step(obs, config)
 
             # Execute the action in the environment.
             old_obs = obs
@@ -288,7 +219,6 @@ class CHMM_TS:
         # compute the value of the next states.
         future_gval = torch.zeros(config["batch_size"], device=Device.get())
         future_gval[torch.logical_not(done)] = self.target(mean_hat[torch.logical_not(done)]).max(1)[0]
-        future_gval = future_gval.detach()
 
         # Compute the immediate G-value.
         immediate_gval = rewards
@@ -299,10 +229,17 @@ class CHMM_TS:
 
         # Compute the discounted G values.
         gval = immediate_gval + self.discount_factor * future_gval
+        gval = gval.detach()
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
-        return loss(critic_pred, gval.unsqueeze(1))
+        loss = loss(critic_pred, gval.unsqueeze(dim=1))
+
+        # Display debug information, if needed.
+        if config["enable_tensorboard"] and self.steps_done % 10 == 0:
+            self.writer.add_scalar("efe_loss", loss, self.steps_done)
+
+        return loss
 
     def compute_vfe(self, config, obs, actions, next_obs):
         """
@@ -322,18 +259,22 @@ class CHMM_TS:
         next_state = mathfc.reparameterize(mean_hat, log_var_hat)
         mean, log_var = self.transition(states, actions)
         alpha = self.decoder(next_state)
+        pi = torch.softmax(self.critic(next_state), dim=0).detach()
+        pi_hat = torch.softmax(self.policy(next_state), dim=0)
 
         # Compute the variational free energy.
+        kl_div_act = mathfc.kl_div_categorical(pi_hat, pi)
         kl_div_hs = mathfc.kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
         log_likelihood = mathfc.log_bernoulli_with_logits(next_obs, alpha)
-        vfe_loss = self.beta * kl_div_hs - log_likelihood
+        vfe_loss = self.beta * (kl_div_hs + kl_div_act) - log_likelihood
 
         # Display debug information, if needed.
         if config["enable_tensorboard"] and self.steps_done % 10 == 0:
-            self.writer.add_scalar("KL_div_hs", kl_div_hs, self.steps_done)
+            self.writer.add_scalar("kl_div_act", kl_div_act, self.steps_done)
+            self.writer.add_scalar("kl_div_hs", kl_div_hs, self.steps_done)
             self.writer.add_scalar("neg_log_likelihood", - log_likelihood, self.steps_done)
-            self.writer.add_scalar("Beta", self.beta, self.steps_done)
-            self.writer.add_scalar("VFE", vfe_loss, self.steps_done)
+            self.writer.add_scalar("beta", self.beta, self.steps_done)
+            self.writer.add_scalar("vfe", vfe_loss, self.steps_done)
 
         return vfe_loss
 
@@ -375,6 +316,9 @@ class CHMM_TS:
             "critic_net_state_dict": self.critic.state_dict(),
             "critic_net_module": str(self.critic.__module__),
             "critic_net_class": str(self.critic.__class__.__name__),
+            "policy_net_state_dict": self.policy.state_dict(),
+            "policy_net_module": str(self.policy.__module__),
+            "policy_net_class": str(self.policy.__class__.__name__),
             "n_steps_beta_reset": self.n_steps_beta_reset,
             "beta_starting_step": self.beta_starting_step,
             "beta": self.beta,
@@ -388,14 +332,14 @@ class CHMM_TS:
             "queue_capacity": self.queue_capacity,
             "n_steps_between_synchro": self.n_steps_between_synchro,
             "action_selection": dict(self.action_selection),
-            "planning": dict(self.mcts)
+            "efe_loss_update_encoder": self.efe_loss_update_encoder
         }, checkpoint_file)
 
     @staticmethod
-    def load_constructor_parameters(tb_dir, checkpoint, training_mode=True):
+    def load_constructor_parameters(config, checkpoint, training_mode=True):
         """
         Load the constructor parameters from a checkpoint.
-        :param tb_dir: the hydra configuration.
+        :param config: the hydra configuration.
         :param checkpoint: the chechpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
         :return: a dictionary containing the contrutor's parameters.
@@ -405,19 +349,20 @@ class CHMM_TS:
             "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
             "transition": Checkpoint.load_transition(checkpoint, training_mode),
             "critic": Checkpoint.load_critic(checkpoint, training_mode),
+            "policy": Checkpoint.load_policy(checkpoint, training_mode),
             "vfe_lr": checkpoint["vfe_lr"],
             "efe_lr": checkpoint["efe_lr"],
             "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
-            "planning": Checkpoint.load_object_from_dictionary(checkpoint, "planning"),
             "beta": checkpoint["beta"],
             "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
             "beta_starting_step": checkpoint["beta_starting_step"],
             "beta_rate": checkpoint["beta_rate"],
             "discount_factor": checkpoint["discount_factor"],
-            "tensorboard_dir": tb_dir,
+            "tensorboard_dir": config["agent"]["tensorboard_dir"],
             "g_value": checkpoint["g_value"],
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
             "steps_done": checkpoint["steps_done"],
-            "n_actions": checkpoint["n_actions"]
+            "n_actions": checkpoint["n_actions"],
+            "efe_loss_update_encoder": checkpoint["efe_loss_update_encoder"]
         }

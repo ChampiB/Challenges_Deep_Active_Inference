@@ -13,10 +13,11 @@ import torch
 #
 class dSpritesEnv(gym.Env):
 
-    def __init__(self, config):
+    def __init__(self, config, reset_state=None):
         """
         Constructor (compatible with OpenAI gym environment)
         :param config: the hydra configuration.
+        :param reset_state: the state to which the environment should be reset, None for random reset.
         """
 
         # Gym compatibility
@@ -31,6 +32,7 @@ class dSpritesEnv(gym.Env):
         self.images, self.s_sizes, self.s_dim, self.s_bases = \
             DataSet.get(config["env"]["images_archive"])
 
+        self.reset_state = reset_state
         self.state = np.zeros(self.s_dim, dtype=self.np_precision)
         self.last_r = 0.0
         self.frame_id = 0
@@ -74,10 +76,13 @@ class dSpritesEnv(gym.Env):
         Reset the state of the environment to an initial state.
         :return: the first observation.
         """
-        self.state = np.zeros(self.s_dim, dtype=self.np_precision)
-        self.last_r = 0.0
-        self.frame_id = 0
-        self.reset_hidden_state()
+        if self.reset_state is not None:
+            self.state = self.reset_state
+        else:
+            self.state = np.zeros(self.s_dim, dtype=self.np_precision)
+            self.last_r = 0.0
+            self.frame_id = 0
+            self.reset_hidden_state()
         return self.current_frame()
 
     def step(self, action):

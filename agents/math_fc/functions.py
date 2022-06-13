@@ -16,6 +16,17 @@ def entropy_gaussian(log_var, sum_dims=None):
     return log_var.size()[1] * 0.5 * ln2pie + 0.5 * log_var.sum(sum_dims)
 
 
+def kl_div_categorical(pi_hat, pi):
+    """
+    Compute the KL-divergence between two categorical distribution.
+    :param pi_hat: the parameters of the first categorical distribution.
+    :param pi: the parameters of the second categorical distribution.
+    :return: the KL-divergence.
+    """
+    kl = pi_hat * (pi_hat.log() - pi.log())
+    return kl.sum()
+
+
 def kl_div_gaussian(mean_hat, log_var_hat, mean, log_var, sum_dims=None):
     """
     Compute the KL-divergence between two Gaussian distributions
@@ -63,7 +74,7 @@ def reparameterize(mean, log_var):
     return epsilon * torch.exp(0.5 * log_var) + mean
 
 
-def compute_efe(g_value, mean_hat, log_var_hat, mean, log_var, shift=-20):
+def compute_info_gain(g_value, mean_hat, log_var_hat, mean, log_var, shift=-20):
     """
     Compute the efe.
     :param g_value: the definition of the efe to use, i.e., reward, efe_0, efe_1,

@@ -1,0 +1,28 @@
+name: dai
+
+defaults:
+  - encoder: convolutional64
+  - decoder: convolutional64
+  - transition: linearRelu3x100
+  - critic: linearRelu4x100
+  - policy: linearRelu4x100
+  - action_selection: epsilonGreedy
+
+_target_: agents.DAI.DAI
+
+# Miscellaneous
+n_states: 15
+vfe_lr: 0.0001
+efe_lr: 0.0001
+discount_factor: 0.95
+n_steps_between_synchro: 10
+queue_capacity: 50000
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/${agent.name}_${env.name}_${seed}"
+g_value: "reward"
+efe_loss_update_encoder: False
+
+# Beta scheduling
+beta: 1.0
+beta_starting_step: 0
+beta_rate: 0.0
+n_steps_beta_reset: 10000000000
