@@ -73,7 +73,7 @@ def compute_sim(cfg):
     env = DefaultWrappers.apply(env, cfg.images.shape)
 
     # Sample a batch of experiences.
-    samples, actions, rewards, done, next_obs = get_batch(batch_size=5000, env=env)  # TODO pick what you need
+    samples, actions, rewards, done, next_obs = get_batch(batch_size=5000, env=env)
 
     m1 = Checkpoint(cfg.a1_tensorboard_dir, cfg.a1_path).load_model()
     m2 = Checkpoint(cfg.a2_tensorboard_dir, cfg.a2_path).load_model()
