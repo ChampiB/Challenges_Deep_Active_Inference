@@ -212,7 +212,7 @@ class CHMM_C2LS:
         immediate_gval = self.phi * rewards.clone()
 
         # Add information gain to the immediate g-value (if needed).
-        immediate_gval += mathfc.compute_efe(self.g_value, m_mean_hat, m_log_var_hat, m_mean, m_log_var, self.shift)
+        immediate_gval += mathfc.compute_info_gain(self.g_value, m_mean_hat, m_log_var_hat, m_mean, m_log_var, self.shift)
 
         # Compute the discounted G values.
         gval = immediate_gval.to(torch.float32) + self.discount_factor * future_gval

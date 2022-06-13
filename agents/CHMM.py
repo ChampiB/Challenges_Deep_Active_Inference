@@ -222,7 +222,7 @@ class CHMM:
         immediate_gval = rewards
 
         # Add information gain to the immediate g-value (if needed).
-        immediate_gval += mathfc.compute_efe(self.g_value, mean_hat, log_var_hat, mean, log_var)
+        immediate_gval -= mathfc.compute_info_gain(self.g_value, mean_hat, log_var_hat, mean, log_var)
         immediate_gval = immediate_gval.to(torch.float32)
 
         # Compute the discounted G values.
