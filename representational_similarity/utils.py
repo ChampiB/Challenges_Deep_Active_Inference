@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from torch import nn
 
 from agents import DQN, CHMM
+from agents.DAI import DAI
 from agents.layers.DiagonalGaussian import DiagonalGaussian
 from representational_similarity import logger
 
@@ -70,14 +71,13 @@ def save_figure(out_fname, dpi=300, tight=True):
 
 def select_and_get_layers(model):
     layers_info = []
-    # TODO: update this part with DAI when DAI is implemented
     if not isinstance(model, DQN.DQN):
         curr_layers_info, _ = get_layers(list(model.encoder.modules())[-1], "Encoder")
         layers_info += curr_layers_info
-    if isinstance(model, CHMM.CHMM):  # or isinstance(model, DAI)
+    if isinstance(model, CHMM.CHMM) or isinstance(model, DAI):
         curr_layers_info, _ = get_layers(list(model.critic.modules())[-1], "Critic")
         layers_info += curr_layers_info
-    if isinstance(model, DQN.DQN):  # or isinstance(model, DAI)
+    if isinstance(model, DQN.DQN) or isinstance(model, DAI):
         curr_layers_info, _ = get_layers(list(model.policy.modules())[-1], "Policy")
         layers_info += curr_layers_info
     logger.debug("Found layers {}".format(layers_info))
