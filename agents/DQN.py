@@ -207,20 +207,20 @@ class DQN:
     #
 
     @staticmethod
-    def load_constructor_parameters(config, checkpoint, training_mode=True):
+    def load_constructor_parameters(tb_dir, checkpoint, training_mode=True):
         """
         Load the constructor parameters from a checkpoint.
-        :param config: the hydra configuration.
-        :param checkpoint: the chechpoint from which to load the parameters.
+        :param tb_dir: the path of tensorboard directory.
+        :param checkpoint: the checkpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: a dictionary containing the contrutor's parameters.
+        :return: a dictionary containing the contructor's parameters.
         """
         return {
             "policy": Checkpoint.load_policy(checkpoint, training_mode),
             "lr": checkpoint["lr"],
             "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
             "discount_factor": checkpoint["discount_factor"],
-            "tensorboard_dir": config["agent"]["tensorboard_dir"],
+            "tensorboard_dir": tb_dir,
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
             "steps_done": checkpoint["steps_done"],

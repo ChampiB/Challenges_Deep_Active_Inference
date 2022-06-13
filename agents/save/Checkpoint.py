@@ -11,10 +11,10 @@ import torch
 #
 class Checkpoint:
 
-    def __init__(self, config, file):
+    def __init__(self, tb_dir, file):
         """
         Construct the checkpoint from the checkpoint file.
-        :param config: the hydra configuration.
+        :param tb_dir: the path of tensorboard directory.
         :param file: the checkpoint file.
         """
 
@@ -27,8 +27,8 @@ class Checkpoint:
         # Load checkpoint from path.
         self.checkpoint = torch.load(file, map_location=Device.get())
 
-        # Store the configuration
-        self.config = config
+        # Store the pth of the tensoboard directory
+        self.tb_dir = tb_dir
 
     def exists(self):
         """
@@ -53,7 +53,7 @@ class Checkpoint:
         agent_class = getattr(agent_module, self.checkpoint["agent_class"])
 
         # Load the parameters of the constructor from the checkpoint.
-        param = agent_class.load_constructor_parameters(self.config, self.checkpoint, training_mode)
+        param = agent_class.load_constructor_parameters(self.tb_dir, self.checkpoint, training_mode)
 
         # Instantiate the agent.
         return agent_class(**param)

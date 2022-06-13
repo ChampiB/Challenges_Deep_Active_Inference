@@ -336,13 +336,13 @@ class CHMM_CN2LS:
         }, checkpoint_file)
 
     @staticmethod
-    def load_constructor_parameters(config, checkpoint, training_mode=True):
+    def load_constructor_parameters(tb_dir, checkpoint, training_mode=True):
         """
         Load the constructor parameters from a checkpoint.
-        :param config: the hydra configuration.
-        :param checkpoint: the chechpoint from which to load the parameters.
+        :param tb_dir: the path of tensorboard directory.
+        :param checkpoint: the checkpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: a dictionary containing the contrutor's parameters.
+        :return: a dictionary containing the contructor's parameters.
         """
         return {
             "encoder": Checkpoint.load_encoder_2ls(checkpoint, training_mode),
@@ -355,7 +355,7 @@ class CHMM_CN2LS:
             "beta": checkpoint["beta"],
             "phi": checkpoint["phi"],
             "discount_factor": checkpoint["discount_factor"],
-            "tensorboard_dir": config["agent"]["tensorboard_dir"],
+            "tensorboard_dir": tb_dir,
             "g_value": checkpoint["g_value"],
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
