@@ -41,7 +41,7 @@ class Checkpoint:
         """
         Load the model from the checkpoint.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: the loaded model or None if an error occured.
+        :return: the loaded model or None if an error occurred.
         """
 
         # Check if the checkpoint is loadable.

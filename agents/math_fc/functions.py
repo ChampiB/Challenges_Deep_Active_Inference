@@ -17,7 +17,14 @@ def entropy_gaussian(log_var, sum_dims=None):
 
 
 def kl_div_categorical(pi_hat, pi):
-    return kl_div
+    """
+    Compute the KL-divergence between two categorical distribution.
+    :param pi_hat: the parameters of the first categorical distribution.
+    :param pi: the parameters of the second categorical distribution.
+    :return: the KL-divergence.
+    """
+    kl = pi_hat * (pi_hat.log() - pi.log())
+    return kl.sum()
 
 
 def kl_div_gaussian(mean_hat, log_var_hat, mean, log_var, sum_dims=None):

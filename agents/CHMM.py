@@ -331,9 +331,9 @@ class CHMM:
         """
         Load the constructor parameters from a checkpoint.
         :param config: the hydra configuration.
-        :param checkpoint: the chechpoint from which to load the parameters.
+        :param checkpoint: the checkpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: a dictionary containing the contrutor's parameters.
+        :return: a dictionary containing the construtor's parameters.
         """
         return {
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),

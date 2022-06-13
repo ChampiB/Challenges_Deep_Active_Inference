@@ -259,8 +259,8 @@ class DAI:
         next_state = mathfc.reparameterize(mean_hat, log_var_hat)
         mean, log_var = self.transition(states, actions)
         alpha = self.decoder(next_state)
-        pi = self.critic(next_state)
-        pi_hat = self.policy(next_state)
+        pi = torch.softmax(self.critic(next_state), dim=0).detach()
+        pi_hat = torch.softmax(self.policy(next_state), dim=0)
 
         # Compute the variational free energy.
         kl_div_act = mathfc.kl_div_categorical(pi_hat, pi)
@@ -316,6 +316,9 @@ class DAI:
             "critic_net_state_dict": self.critic.state_dict(),
             "critic_net_module": str(self.critic.__module__),
             "critic_net_class": str(self.critic.__class__.__name__),
+            "policy_net_state_dict": self.policy.state_dict(),
+            "policy_net_module": str(self.policy.__module__),
+            "policy_net_class": str(self.policy.__class__.__name__),
             "n_steps_beta_reset": self.n_steps_beta_reset,
             "beta_starting_step": self.beta_starting_step,
             "beta": self.beta,
@@ -346,6 +349,7 @@ class DAI:
             "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
             "transition": Checkpoint.load_transition(checkpoint, training_mode),
             "critic": Checkpoint.load_critic(checkpoint, training_mode),
+            "policy": Checkpoint.load_policy(checkpoint, training_mode),
             "vfe_lr": checkpoint["vfe_lr"],
             "efe_lr": checkpoint["efe_lr"],
             "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),

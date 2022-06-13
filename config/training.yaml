@@ -1,6 +1,6 @@
 defaults:
   - env: dSprites
-  - agent: CHMM
+  - agent: DAI
   - _self_
 
 checkpoint:
