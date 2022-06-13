@@ -83,3 +83,24 @@ sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh 
 sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM_CN2LS seed=70 env.difficulty="hard" agent.g_value="befe_1"
 sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM_CN2LS seed=71 env.difficulty="hard" agent.g_value="befe_2"
 sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM_CN2LS seed=72 env.difficulty="hard" agent.g_value="befe_3"
+
+
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=73 env.difficulty="hard" agent.g_value="reward"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=74 env.difficulty="hard" agent.g_value="efe_0"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=75 env.difficulty="hard" agent.g_value="efe_1"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=76 env.difficulty="hard" agent.g_value="efe_2"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=77 env.difficulty="hard" agent.g_value="efe_3"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=78 env.difficulty="hard" agent.g_value="befe_0"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=79 env.difficulty="hard" agent.g_value="befe_1"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=80 env.difficulty="hard" agent.g_value="befe_2"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=81 env.difficulty="hard" agent.g_value="befe_3"
+
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=82 env.difficulty="hard" agent.g_value="reward" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=83 env.difficulty="hard" agent.g_value="efe_0" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=84 env.difficulty="hard" agent.g_value="efe_1" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=85 env.difficulty="hard" agent.g_value="efe_2" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=86 env.difficulty="hard" agent.g_value="efe_3" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=87 env.difficulty="hard" agent.g_value="befe_0" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=88 env.difficulty="hard" agent.g_value="befe_1" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=89 env.difficulty="hard" agent.g_value="befe_2" agent.efe_loss_update_encoder=True
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=90 env.difficulty="hard" agent.g_value="befe_3" agent.efe_loss_update_encoder=True

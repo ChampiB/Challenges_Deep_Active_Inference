@@ -16,6 +16,10 @@ def entropy_gaussian(log_var, sum_dims=None):
     return log_var.size()[1] * 0.5 * ln2pie + 0.5 * log_var.sum(sum_dims)
 
 
+def kl_div_categorical(pi_hat, pi):
+    return kl_div
+
+
 def kl_div_gaussian(mean_hat, log_var_hat, mean, log_var, sum_dims=None):
     """
     Compute the KL-divergence between two Gaussian distributions
