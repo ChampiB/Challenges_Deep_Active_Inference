@@ -175,7 +175,7 @@ class Checkpoint:
         return transition
 
     @staticmethod
-    def load_critic(checkpoint, training_mode=True, n_states_key="n_states"):
+    def load_critic(checkpoint, training_mode=True, n_states_key="n_states", network_key="critic_net"):
         """
         Load the critic from the checkpoint.
         :param checkpoint: the checkpoint.
@@ -185,12 +185,12 @@ class Checkpoint:
         """
 
         # Load critic network.
-        critic_module = importlib.import_module(checkpoint["critic_net_module"])
-        critic_class = getattr(critic_module, checkpoint["critic_net_class"])
+        critic_module = importlib.import_module(checkpoint[network_key + "_module"])
+        critic_class = getattr(critic_module, checkpoint[network_key + "_class"])
         critic = critic_class(
             n_states=checkpoint[n_states_key], n_actions=checkpoint["n_actions"]
         )
-        critic.load_state_dict(checkpoint["critic_net_state_dict"])
+        critic.load_state_dict(checkpoint[network_key + "_state_dict"])
 
         # Set the training mode of the critic.
         Checkpoint.set_training_mode(critic, training_mode)

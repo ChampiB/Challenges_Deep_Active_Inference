@@ -23,7 +23,8 @@ def kl_div_categorical(pi_hat, pi):
     :param pi: the parameters of the second categorical distribution.
     :return: the KL-divergence.
     """
-    kl = pi_hat * (pi_hat.log() - pi.log())
+    shift = 0.00001
+    kl = pi_hat * ((pi_hat + shift).log() - (pi + shift).log())
     return kl.sum()
 
 
