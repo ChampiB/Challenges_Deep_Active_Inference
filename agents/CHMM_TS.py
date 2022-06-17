@@ -398,7 +398,7 @@ class CHMM_TS:
         :param tb_dir: the hydra configuration.
         :param checkpoint: the chechpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: a dictionary containing the contrutor's parameters.
+        :return: a dictionary containing the constructor's parameters.
         """
         return {
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
