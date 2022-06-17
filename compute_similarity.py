@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
+
 logger = logging.getLogger("similarity_metric")
 
 
@@ -36,7 +37,31 @@ def get_batch(batch_size, env, capacity=50000):
     return buffer.sample(batch_size)
 
 
-def compute_similarity_metric(model1, model2, samples, save_path):
+def plot(res, save_path):
+    # When we have FC/conv + activation function, we only keep the activation function.
+    # We also drop activations from dropout and reshape layers as they are not very informative.
+    logger.debug("Dataframe before pre-processing: {}".format(res))
+    cols_to_keep = {"Encoder_2": "Encoder_1", "Encoder_4": "Encoder_2", "Encoder_6": "Encoder_3",
+                    "Encoder_8": "Encoder_4", "Encoder_11": "Encoder_4", "Encoder_12": "Encoder_6",
+                    "Encoder_13": "Encoder_7", "Critic_2": "Critic_1", "Critic_4": "Critic_2", "Critic_6": "Critic_3",
+                    "Critic_7": "Critic_4", "Policy_2": "Policy_1", "Policy_4": "Policy_2", "Policy_6": "Policy_3",
+                    "Policy_7": "Policy_4"}
+    rows_to_keep = cols_to_keep
+    if res.index.name == "DQN":
+        rows_to_keep = {"Policy_2": "Policy_1", "Policy_4": "Policy_2", "Policy_6": "Policy_3",
+                        "Policy_8": "Policy_4", "Policy_11": "Policy_5", "Policy_14": "Policy_6"}
+    if res.columns.name == "DQN":
+        cols_to_keep = {"Policy_2": "Policy_1", "Policy_4": "Policy_2", "Policy_6": "Policy_3",
+                        "Policy_8": "Policy_4", "Policy_11": "Policy_5", "Policy_14": "Policy_6"}
+    df = res.loc[res.index.isin(rows_to_keep.keys()), res.columns.isin(cols_to_keep.keys())]
+    df.rename(columns=cols_to_keep, index=rows_to_keep, inplace=True)
+    logger.debug("Dataframe after pre-processing: {}".format(df))
+    ax = sns.heatmap(df, vmin=0, vmax=1, annot_kws={"fontsize": 13})
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
+    save_figure("{}.pdf".format(save_path))
+
+
+def compute_similarity_metric(model1, model2, samples, save_path, m1_name, m2_name):
     logger.info("Instantiating CKA...")
     metric = CKA()
     acts1 = get_activations(samples, model1)
@@ -53,18 +78,17 @@ def compute_similarity_metric(model1, model2, samples, save_path):
             res[l1][l2] = float(metric(act1, act2))
     res = pd.DataFrame(res).T
     # Save csv with m1 layers as header, m2 layers as indexes
-    res = res.rename_axis("m1", axis="columns")
-    res = res.rename_axis("m2")
-    sns.heatmap(res, vmin=0, vmax=1, annot_kws={"fontsize": 13})
-    save_figure("{}.pdf".format(save_path))
+    res = res.rename_axis(m2_name.upper(), axis="columns")
+    res = res.rename_axis(m1_name.upper())
     res.to_csv("{}.tsv".format(save_path), sep="\t")
+    plot(res, save_path)
 
 
 @hydra.main(config_path="config", config_name="similarity")
 def compute_sim(cfg):
     # Display the configuration.
     logger.info("Experiment config:\n{}".format(OmegaConf.to_yaml(cfg)))
-    save_path = "CKA_{}_{}.tsv".format(cfg.a1_name, cfg.a2_name)
+    save_path = "CKA_{}_{}".format(cfg.a1_name, cfg.a2_name)
 
     # Create the environment.
     env = EnvFactory.make(cfg)
@@ -77,7 +101,7 @@ def compute_sim(cfg):
 
     m1 = Checkpoint(cfg.a1_tensorboard_dir, cfg.a1_path).load_model()
     m2 = Checkpoint(cfg.a2_tensorboard_dir, cfg.a2_path).load_model()
-    compute_similarity_metric(m1, m2, samples, save_path)
+    compute_similarity_metric(m1, m2, samples, save_path, cfg.a1_name, cfg.a2_name)
 
 
 if __name__ == "__main__":
