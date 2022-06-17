@@ -319,7 +319,7 @@ class CriticFixedHMM:
         :param tb_dir: the path of tensorboard directory.
         :param checkpoint: the checkpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: a dictionary containing the contructor's parameters.
+        :return: a dictionary containing the constructor's parameters.
         """
         return {
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
