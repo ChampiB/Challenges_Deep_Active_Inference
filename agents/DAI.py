@@ -350,16 +350,16 @@ class DAI:
         """
         Load the constructor parameters from a checkpoint.
         :param tb_dir: the path of tensorboard directory.
-        :param checkpoint: the chechpoint from which to load the parameters.
+        :param checkpoint: the checkpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: a dictionary containing the contrutor's parameters.
+        :return: a dictionary containing the constructor's parameters.
         """
         return {
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
             "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
             "transition": Checkpoint.load_transition(checkpoint, training_mode),
             "critic": Checkpoint.load_critic(checkpoint, training_mode),
-            "policy": Checkpoint.load_policy(checkpoint, training_mode),
+            "policy": Checkpoint.load_critic(checkpoint, training_mode, network_key="policy_net"),
             "vfe_lr": checkpoint["vfe_lr"],
             "efe_lr": checkpoint["efe_lr"],
             "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
