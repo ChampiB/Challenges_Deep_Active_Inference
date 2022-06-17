@@ -533,13 +533,13 @@ class DAIMC:
         }, checkpoint_file)
 
     @staticmethod
-    def load_constructor_parameters(config, checkpoint, training_mode=True):
+    def load_constructor_parameters(tb_dir, checkpoint, training_mode=True):
         """
         Load the constructor parameters from a checkpoint.
-        :param config: the hydra configuration.
-        :param checkpoint: the chechpoint from which to load the parameters.
+        :param tb_dir: the path of tensorboard directory.
+        :param checkpoint: the checkpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: a dictionary containing the contrutor's parameters.
+        :return: a dictionary containing the constructor's parameters.
         """
         return {
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
@@ -565,7 +565,7 @@ class DAIMC:
             "efe_deepness": checkpoint["efe_deepness"],
             "efe_n_samples": checkpoint["efe_n_samples"],
             "queue_capacity": checkpoint["queue_capacity"],
-            "tensorboard_dir": config["agent"]["tensorboard_dir"],
+            "tensorboard_dir": tb_dir,
             "steps_done": checkpoint["steps_done"],
         }
 

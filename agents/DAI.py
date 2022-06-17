@@ -286,6 +286,16 @@ class DAI:
         self.target = copy.deepcopy(self.critic)
         self.target.eval()
 
+    def predict(self, obs):
+        """
+        Do one forward pass using given observation.
+        :return: the outputs of the encoder, policy and critic
+        """
+        mean_hat_t, log_var_hat_t = self.encoder(obs)
+        policy_pred = self.policy(mean_hat_t)
+        critic_pred = self.critic(mean_hat_t)
+        return mean_hat_t, critic_pred, policy_pred
+
     def save(self, config):
         """
         Create a checkpoint file allowing the agent to be reloaded later
@@ -336,13 +346,13 @@ class DAI:
         }, checkpoint_file)
 
     @staticmethod
-    def load_constructor_parameters(config, checkpoint, training_mode=True):
+    def load_constructor_parameters(tb_dir, checkpoint, training_mode=True):
         """
         Load the constructor parameters from a checkpoint.
-        :param config: the hydra configuration.
+        :param tb_dir: the path of tensorboard directory.
         :param checkpoint: the checkpoint from which to load the parameters.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: a dictionary containing the construtor's parameters.
+        :return: a dictionary containing the constructor's parameters.
         """
         return {
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
@@ -358,7 +368,7 @@ class DAI:
             "beta_starting_step": checkpoint["beta_starting_step"],
             "beta_rate": checkpoint["beta_rate"],
             "discount_factor": checkpoint["discount_factor"],
-            "tensorboard_dir": config["agent"]["tensorboard_dir"],
+            "tensorboard_dir": tb_dir,
             "g_value": checkpoint["g_value"],
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],

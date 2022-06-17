@@ -8,4 +8,7 @@ future~=0.18.2
 omegaconf~=2.1.1
 ttkthemes
 hydra
+pandas~=1.4.2
+seaborn~=0.11.2
+tensorboard
 hydra-core
