@@ -75,10 +75,10 @@ def select_and_get_layers(model):
         curr_layers_info, _ = get_layers(list(model.encoder.modules())[-1], "Encoder")
         layers_info += curr_layers_info
     if isinstance(model, CHMM.CHMM) or isinstance(model, DAI):
-        curr_layers_info, _ = get_layers(list(model.critic.modules())[-1], "Critic")
+        curr_layers_info, _ = get_layers(list(model.critic.modules())[1], "Critic")
         layers_info += curr_layers_info
     if isinstance(model, DQN.DQN) or isinstance(model, DAI):
-        curr_layers_info, _ = get_layers(list(model.policy.modules())[-1], "Policy")
+        curr_layers_info, _ = get_layers(list(model.policy.modules())[1], "Policy")
         layers_info += curr_layers_info
     logger.debug("Found layers {}".format(layers_info))
     return layers_info
