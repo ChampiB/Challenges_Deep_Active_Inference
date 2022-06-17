@@ -27,7 +27,7 @@ class Checkpoint:
         # Load checkpoint from path.
         self.checkpoint = torch.load(file, map_location=Device.get())
 
-        # Store the pth of the tensoboard directory
+        # Store the path of the tensoboard directory
         self.tb_dir = tb_dir
 
     def exists(self):
