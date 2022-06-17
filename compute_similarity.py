@@ -42,7 +42,7 @@ def plot(res, save_path):
     # We also drop activations from dropout and reshape layers as they are not very informative.
     logger.debug("Dataframe before pre-processing: {}".format(res))
     cols_to_keep = {"Encoder_2": "Encoder_1", "Encoder_4": "Encoder_2", "Encoder_6": "Encoder_3",
-                    "Encoder_8": "Encoder_4", "Encoder_11": "Encoder_4", "Encoder_12": "Encoder_6",
+                    "Encoder_8": "Encoder_4", "Encoder_11": "Encoder_5", "Encoder_12": "Encoder_6",
                     "Encoder_13": "Encoder_7", "Critic_2": "Critic_1", "Critic_4": "Critic_2", "Critic_6": "Critic_3",
                     "Critic_7": "Critic_4", "Policy_2": "Policy_1", "Policy_4": "Policy_2", "Policy_6": "Policy_3",
                     "Policy_7": "Policy_4"}
