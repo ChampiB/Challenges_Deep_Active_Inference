@@ -272,14 +272,17 @@ class CHMM:
 
         return vfe_loss
 
-    def predict(self, obs):
+    def predict(self, data):
         """
-        Do one forward pass using given observation.
-        :return: the outputs of the encoder and critic model
+        Do one forward pass using the given observations and actions.
+        :param data: a tuple containing the observations and actions at time t
+        :return: the outputs of the encoder, transition, and critic model
         """
+        obs, actions = data
         mean_hat_t, log_var_hat_t = self.encoder(obs)
+        transition_pred = self.transition(mean_hat_t, actions)
         critic_pred = self.critic(mean_hat_t)
-        return mean_hat_t, log_var_hat_t, critic_pred
+        return (mean_hat_t, log_var_hat_t), transition_pred, critic_pred
 
     def synchronize_target(self):
         """

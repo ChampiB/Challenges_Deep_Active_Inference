@@ -286,15 +286,18 @@ class DAI:
         self.target = copy.deepcopy(self.critic)
         self.target.eval()
 
-    def predict(self, obs):
+    def predict(self, data):
         """
-        Do one forward pass using given observation.
-        :return: the outputs of the encoder, policy and critic
+        Do one forward pass using the given observations and actions.
+        :param data: a tuple containing the observations and actions at time t
+        :return: the outputs of the encoder, transition, policy and critic
         """
+        obs, actions = data
         mean_hat_t, log_var_hat_t = self.encoder(obs)
+        transition_pred = self.transition(mean_hat_t, actions)
         policy_pred = self.policy(mean_hat_t)
         critic_pred = self.critic(mean_hat_t)
-        return mean_hat_t, critic_pred, policy_pred
+        return (mean_hat_t, log_var_hat_t), transition_pred, critic_pred, policy_pred
 
     def save(self, config):
         """

@@ -1,9 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from torch import nn
-
-from agents import DQN, CHMM
-from agents.DAI import DAI
+from agents import DQN, CHMM, DAI, HMM
 from agents.layers.DiagonalGaussian import DiagonalGaussian
 from representational_similarity import logger
 
@@ -54,36 +51,22 @@ def prepare_activations(x):
     return np.array(x)
 
 
-def save_figure(out_fname, dpi=300, tight=True):
-    """ Save a matplotlib figure in an `out_fname` file.
-
-    :param str out_fname: Name of the file used to save the figure.
-    :param int dpi: Number of dpi, Default 300.
-    :param bool tight: If True, use plt.tight_layout() before saving. Default True.
-    """
-    if tight is True:
-        plt.tight_layout()
-    plt.savefig(out_fname, dpi=dpi, transparent=True)
-    plt.clf()
-    plt.cla()
-    plt.close()
-
-
 def select_and_get_layers(model):
     layers_info = []
     if not isinstance(model, DQN.DQN):
         curr_layers_info, _ = get_layers(list(model.encoder.modules())[-1], "Encoder")
         layers_info += curr_layers_info
-    if isinstance(model, CHMM.CHMM) or isinstance(model, DAI):
+    if isinstance(model, CHMM.CHMM) or isinstance(model, DAI.DAI) or isinstance(model, HMM.HMM):
+        curr_layers_info, _ = get_layers(list(model.transition.modules())[1], "Transition")
+        layers_info += curr_layers_info
+    if isinstance(model, CHMM.CHMM) or isinstance(model, DAI.DAI):
         curr_layers_info, _ = get_layers(list(model.critic.modules())[1], "Critic")
         layers_info += curr_layers_info
-    if isinstance(model, DQN.DQN):
-        curr_layers_info, _ = get_layers(list(model.policy.modules())[-1], "Policy")
-        layers_info += curr_layers_info
-    # The policy is not the same for DAI so we change the module index
-    # It could be nice to uniformise the initialisation of the models architectures in the future.
-    if isinstance(model, DAI):
-        curr_layers_info, _ = get_layers(list(model.policy.modules())[1], "Policy")
+    if isinstance(model, DQN.DQN) or isinstance(model, DAI.DAI):
+        # The policy is not the same for DAI so we change the module index
+        # It could be nice to uniformise the initialisation of the models architectures in the future.
+        idx = -1 if isinstance(model, DQN.DQN) else 1
+        curr_layers_info, _ = get_layers(list(model.policy.modules())[idx], "Policy")
         layers_info += curr_layers_info
     logger.debug("Found layers {}".format(layers_info))
     return layers_info

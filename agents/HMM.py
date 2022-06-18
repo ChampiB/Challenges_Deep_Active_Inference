@@ -183,12 +183,18 @@ class HMM:
 
         return vfe_loss
 
-    def predict(self, obs):
+    def predict(self, data):
         """
-        Do one forward pass using given observation.
-        :return: the outputs of the encoder
+        Do one forward pass using the given observations and actions.
+        :param data: a tuple containing the observations and actions at time t
+        :return: the outputs of the encoder and transition model
         """
-        return self.encoder(obs)
+        obs, actions = data
+        mean_hat_t, log_var_hat_t = self.encoder(obs)
+        # To be coherent with CHMM and DAI, we do not reparametrise before the transition.
+        transition_pred = self.transition(mean_hat_t, actions)
+        return (mean_hat_t, log_var_hat_t), transition_pred
+
 
     def save(self, config):
         """
