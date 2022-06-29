@@ -1,6 +1,8 @@
 from representational_similarity import logger
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
+from scipy import stats
 import pandas as pd
 
 def save_figure(out_fname, dpi=300, tight=True):
@@ -57,6 +59,16 @@ def plot_corr(res, m1, m2, save_path):
 
 def plot_distrib(acts, l, save_path):
     df = pd.DataFrame(acts).add_prefix("latent_")
-    sns.pairplot(df)
-    save_figure("{}_{}.pdf".format(save_path, l))
     df.to_csv("{}_{}.tsv".format(save_path, l), sep="\t", index=False)
+    df = drop_outliers(df)
+    for column in df.columns:
+        plt.figure()
+        sns.displot(df[column])
+        save_figure("{}_{}_{}.pdf".format(save_path, l, column))
+
+
+def drop_outliers(df, z_thresh=2):
+    # This a slightly updated version of https://stackoverflow.com/a/56725366
+    f = lambda x: np.abs(stats.zscore(x)) < z_thresh
+    constrains = df.apply(f).all(axis=1)
+    return df.drop(df.index[~constrains])

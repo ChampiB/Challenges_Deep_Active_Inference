@@ -15,7 +15,6 @@ logger = logging.getLogger("variance_correlation")
 def compute_correlations(model1, model2, data, save_path, m1_name, m2_name):
     df1_save_path = "_".join(save_path.split("_")[1:3])
     df2_save_path = "_".join(save_path.split("_")[3:])
-    res = {}
     done = False
     logger.info("Retrieving layer activations...")
     acts1 = get_activations(data, model1, logvar_only=True)
@@ -23,7 +22,6 @@ def compute_correlations(model1, model2, data, save_path, m1_name, m2_name):
     acts1 = {k: np.exp(v) for k, v in acts1.items()}
     acts2 = {k: np.exp(v) for k, v in acts2.items()}
     for l1, act1 in acts1.items():
-        res[l1] = {}
         plot_distrib(act1, l1, df1_save_path)
         logger.debug("Activation shape of {}: {}".format(l1, act1.shape))
         for l2, act2 in acts2.items():
@@ -31,8 +29,7 @@ def compute_correlations(model1, model2, data, save_path, m1_name, m2_name):
                 plot_distrib(act2, l2, df2_save_path)
             logger.info("Computing correlation of {} and {}".format(l1, l2))
             logger.debug("Activation shape of {}: {}".format(l2, act2.shape))
-            res = np.corrcoef(act1.T, act2.T)[act1.T.shape[0]:, :act2.T.shape[0]]
-            logger.debug("Activation shape of correlation: {}".format(res.shape))
+            res = np.corrcoef(act1.T, act2.T)[:act1.T.shape[0], -act2.T.shape[0]:]
             plot_corr(res, m1_name, m2_name, "{}_{}_{}".format(save_path, l1, l2))
         done = True
 
