@@ -8,7 +8,7 @@ from representational_similarity.cka import CKA
 from representational_similarity.activations import get_activations, prepare_activations
 import pandas as pd
 from representational_similarity.data import get_batch
-from representational_similarity.visualisation import plot
+from representational_similarity.visualisation import plot_cka
 
 logger = logging.getLogger("similarity_metric")
 
@@ -33,7 +33,7 @@ def compute_similarity_metric(model1, model2, data, save_path, m1_name, m2_name)
     res = res.rename_axis(m2_name.upper(), axis="columns")
     res = res.rename_axis(m1_name.upper())
     res.to_csv("{}.tsv".format(save_path), sep="\t")
-    plot(res, save_path)
+    plot_cka(res, save_path)
 
 
 @hydra.main(config_path="config", config_name="similarity")

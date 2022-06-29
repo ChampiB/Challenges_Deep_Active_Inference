@@ -1,7 +1,7 @@
 from representational_similarity import logger
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import pandas as pd
 
 def save_figure(out_fname, dpi=300, tight=True):
     """ Save a matplotlib figure in an `out_fname` file.
@@ -18,7 +18,7 @@ def save_figure(out_fname, dpi=300, tight=True):
     plt.close()
 
 
-def plot(res, save_path):
+def plot_cka(res, save_path):
     # When we have FC/conv + activation function, we only keep the activation function.
     # We also drop activations from dropout and reshape layers as they are not very informative.
     logger.debug("Dataframe before pre-processing: {}".format(res))
@@ -42,3 +42,21 @@ def plot(res, save_path):
     ax = sns.heatmap(df, vmin=0, vmax=1, annot_kws={"fontsize": 13})
     ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
     save_figure("{}.pdf".format(save_path))
+
+
+def plot_corr(res, m1, m2, save_path):
+    res = pd.DataFrame(res).T
+    # Save csv with m1 layers as header, m2 layers as indexes
+    res = res.rename_axis(m2.upper(), axis="columns")
+    res = res.rename_axis(m1.upper())
+    res.to_csv("{}.tsv".format(save_path), sep="\t")
+    ax = sns.heatmap(res, vmin=-1, vmax=1, annot_kws={"fontsize": 13})
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
+    save_figure("{}.pdf".format(save_path))
+
+
+def plot_distrib(acts, l, save_path):
+    df = pd.DataFrame(acts).add_prefix("latent_")
+    sns.pairplot(df)
+    save_figure("{}_{}.pdf".format(save_path, l))
+    df.to_csv("{}_{}.tsv".format(save_path, l), sep="\t", index=False)

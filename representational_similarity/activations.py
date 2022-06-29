@@ -11,17 +11,18 @@ def get_activation(name, activation):
     return hook
 
 
-def get_activations(data, model):
+def get_activations(data, model, logvar_only=False):
     """ Load a model and generate a dictionary of the activations obtained from `data`.
     We assume that the activations of each layers are exposed.
 
     :param np.array data: A (n_examples, n_features) data matrix
     :param model: The model to use
+    :param logvar_only: If True, only return the activations of the log variance layers of model
     :return: A tuple containing the loaded model, list of activations, and list of layer names.
     """
     activations = {}
     hooks = []
-    layers_info = select_and_get_layers(model)
+    layers_info = select_and_get_layers(model, logvar_only)
 
     # Register forward hooks to get the activations of all the layers
     for name, layer in layers_info:
@@ -51,18 +52,24 @@ def prepare_activations(x):
     return np.array(x)
 
 
-def select_and_get_layers(model):
+def select_and_get_layers(model, logvar_only=False):
+    """ Select the layers of the networks of a given model and retrieve their information.
+
+    :param model: The model to use
+    :param logvar_only: If True, only return the activations of the log variance layers of model
+    :return: A list of tuple of the form (layer_name, layer)
+    """
     layers_info = []
     if not isinstance(model, DQN.DQN):
-        curr_layers_info, _ = get_layers(list(model.encoder.modules())[-1], "Encoder")
+        curr_layers_info, _ = get_layers(list(model.encoder.modules())[-1], "Encoder", logvar_only=logvar_only)
         layers_info += curr_layers_info
     if isinstance(model, CHMM.CHMM) or isinstance(model, DAI.DAI) or isinstance(model, HMM.HMM):
-        curr_layers_info, _ = get_layers(list(model.transition.modules())[1], "Transition")
+        curr_layers_info, _ = get_layers(list(model.transition.modules())[1], "Transition", logvar_only=logvar_only)
         layers_info += curr_layers_info
-    if isinstance(model, CHMM.CHMM) or isinstance(model, DAI.DAI):
+    if (isinstance(model, CHMM.CHMM) or isinstance(model, DAI.DAI)) and not logvar_only:
         curr_layers_info, _ = get_layers(list(model.critic.modules())[1], "Critic")
         layers_info += curr_layers_info
-    if isinstance(model, DQN.DQN) or isinstance(model, DAI.DAI):
+    if (isinstance(model, DQN.DQN) or isinstance(model, DAI.DAI)) and not logvar_only:
         # The policy is not the same for DAI so we change the module index
         # It could be nice to uniformise the initialisation of the models architectures in the future.
         idx = -1 if isinstance(model, DQN.DQN) else 1
@@ -72,12 +79,22 @@ def select_and_get_layers(model):
     return layers_info
 
 
-def get_layers(model, prefix, i=1):
+def get_layers(model, prefix, i=1, logvar_only=False):
+    """ Select the layers of a given network and retrieve their information.
+
+    :param model: The model to use
+    :param prefix: the name of the network
+    :param i: start numbering the layers from i, default 1
+    :param logvar_only: If True, only return the activations of the log variance layers of model
+    :return: A list of tuple of the form (prefix_i, layer)
+    """
     layers_info = []
+    if logvar_only is True:
+        return [("{}_variance".format(prefix), list(model.modules())[-1])], i
     # Get the layers at the current level and annotate them with a generic name
     for module in model.modules():
         if not isinstance(module, nn.Sequential) and not isinstance(module, DiagonalGaussian):
             layers_info.append(("{}_{}".format(prefix, i), module))
             i += 1
-    return layers_info, i
+    return layers_info, i if not logvar_only else layers_info[-1], i
 
