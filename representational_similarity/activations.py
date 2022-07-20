@@ -96,5 +96,5 @@ def get_layers(model, prefix, i=1, logvar_only=False):
         if not isinstance(module, nn.Sequential) and not isinstance(module, DiagonalGaussian):
             layers_info.append(("{}_{}".format(prefix, i), module))
             i += 1
-    return layers_info, i if not logvar_only else layers_info[-1], i
+    return (layers_info, i) if not logvar_only else (layers_info[-1], i)
 

@@ -8,12 +8,11 @@ from representational_similarity.cka import CKA
 from representational_similarity.activations import get_activations, prepare_activations
 import pandas as pd
 from representational_similarity.data import get_batch
-from representational_similarity.visualisation import plot_cka
 
 logger = logging.getLogger("similarity_metric")
 
 
-def compute_similarity_metric(model1, model2, data, save_path, m1_name, m2_name):
+def compute_similarity_metric(model1, model2, data, save_file, m1_name, m2_name):
     logger.info("Instantiating CKA...")
     metric = CKA()
     acts1 = get_activations(data, model1)
@@ -32,15 +31,13 @@ def compute_similarity_metric(model1, model2, data, save_path, m1_name, m2_name)
     # Save csv with m1 layers as header, m2 layers as indexes
     res = res.rename_axis(m2_name.upper(), axis="columns")
     res = res.rename_axis(m1_name.upper())
-    res.to_csv("{}.tsv".format(save_path), sep="\t")
-    plot_cka(res, save_path)
+    res.to_csv(save_file, sep="\t")
 
 
 @hydra.main(config_path="config", config_name="similarity")
 def compute_sim(cfg):
     # Display the configuration.
     logger.info("Experiment config:\n{}".format(OmegaConf.to_yaml(cfg)))
-    save_path = "CKA_{}_{}_{}_{}".format(cfg.a1_name, cfg.a1_seed, cfg.a2_name, cfg.a2_seed)
 
     # Create the environment.
     env = EnvFactory.make(cfg)
@@ -53,7 +50,7 @@ def compute_sim(cfg):
 
     m1 = Checkpoint(cfg.a1_tensorboard_dir, cfg.a1_path).load_model()
     m2 = Checkpoint(cfg.a2_tensorboard_dir, cfg.a2_path).load_model()
-    compute_similarity_metric(m1, m2, (samples, actions), save_path, cfg.a1_name, cfg.a2_name)
+    compute_similarity_metric(m1, m2, (samples, actions), cfg.save_file, cfg.a1_name, cfg.a2_name)
 
 
 if __name__ == "__main__":
@@ -62,3 +59,4 @@ if __name__ == "__main__":
 
     # Compute the similarity between the layers of two agents.
     compute_sim()
+

@@ -1,0 +1,26 @@
+n_samples: 10000
+
+defaults:
+  - env: dSprites
+  - _self_
+
+images:
+  shape: ${tuple:1,64,64}
+
+agent_name: vae
+agent_seed: 1
+agent_path: ${oc.env:DATA_DIRECTORY}/${env.name}/${agent_name}/${agent_seed}/model.pt
+agent_tensorboard_dir: ${oc.env:DATA_DIRECTORY}/runs/${agent_name}_${env.name}_${agent_seed}
+
+
+hydra:
+  run:
+    dir: ${oc.env:DATA_DIRECTORY}/${env.name}/${hydra.job.name}/${agent_name}/${agent_seed}
+  sweep:
+    dir: ${oc.env:DATA_DIRECTORY}/${env.name}/${hydra.job.name}/${agent_name}
+    subdir: ${agent_seed}
+  job:
+    config:
+      override_dirname:
+        kv_sep: _
+        item_sep: /

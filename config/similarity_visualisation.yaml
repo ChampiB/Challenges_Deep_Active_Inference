@@ -7,13 +7,20 @@ defaults:
 images:
   shape: ${tuple:1,64,64}
 
-a1_name: vae
+input_file: ${oc.env:DATA_DIRECTORY}/${env.name}/compute_similarity/${a1_name}/${a1_seed}/${a2_name}/${a2_seed}/CKA_${a1_name}_${a1_seed}_${a2_name}_${a2_seed}.tsv
+save_file: CKA_${a1_name}_${a1_seed}_${a2_name}_${a2_seed}.pdf
+
+a1_name: dqn
 a1_seed: 1
+a1_action: null
+a1_gain: null
 a1_path: ${oc.env:DATA_DIRECTORY}/${env.name}/${a1_name}/${a1_seed}/model.pt
 a1_tensorboard_dir: ${oc.env:DATA_DIRECTORY}/runs/${a1_name}_${env.name}_${a1_seed}
 
-a2_name: hmm
+a2_name: vae
 a2_seed: 1
+a2_action: null
+a2_gain: null
 a2_path: ${oc.env:DATA_DIRECTORY}/${env.name}/${a2_name}/${a2_seed}/model.pt
 a2_tensorboard_dir: ${oc.env:DATA_DIRECTORY}/runs/${a2_name}_${env.name}_${a2_seed}
 
