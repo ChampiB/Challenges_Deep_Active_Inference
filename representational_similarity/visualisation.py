@@ -35,10 +35,10 @@ def plot_cka(res, cfg):
                     "Critic_7": "Critic_4", "Policy_2": "Policy_1", "Policy_4": "Policy_2", "Policy_6": "Policy_3",
                     "Policy_7": "Policy_4"}
     rows_to_keep = cols_to_keep
-    if res.index.name == "DQN":
+    if cfg.a1_name == "dqn":
         rows_to_keep = {"Policy_2": "Value_1", "Policy_4": "Value_2", "Policy_6": "Value_3",
                         "Policy_8": "Value_4", "Policy_11": "Value_5", "Policy_14": "Value_6"}
-    if res.columns.name == "DQN":
+    if cfg.a2_name == "dqn":
         cols_to_keep = {"Policy_2": "Value_1", "Policy_4": "Value_2", "Policy_6": "Value_3",
                         "Policy_8": "Value_4", "Policy_11": "Value_5", "Policy_14": "Value_6"}
     df = res.loc[res.index.isin(rows_to_keep.keys()), res.columns.isin(cols_to_keep.keys())]
