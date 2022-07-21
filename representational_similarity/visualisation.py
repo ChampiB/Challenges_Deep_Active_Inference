@@ -4,8 +4,7 @@ import seaborn as sns
 import numpy as np
 from scipy import stats
 import pandas as pd
-sns.set(rc={'figure.figsize': (12, 10)}, font_scale=2.8)
-sns.set_style("whitegrid", {'axes.grid': False, 'legend.labelspacing': 1.2})
+
 
 
 def save_figure(out_fname, dpi=300, tight=True):
@@ -24,6 +23,8 @@ def save_figure(out_fname, dpi=300, tight=True):
 
 
 def plot_cka(res, cfg):
+    sns.set(rc={'figure.figsize': (12, 10)}, font_scale=2)
+    sns.set_style("whitegrid", {'axes.grid': False, 'legend.labelspacing': 1.2})
     # When we have FC/conv + activation function, we only keep the activation function.
     # We also drop activations from dropout and reshape layers as they are not very informative.
     logger.debug("Pre-processing: {}".format(res))
@@ -67,14 +68,18 @@ def plot_corr(res, m1, m2, save_path):
 
 
 def plot_distrib(acts, actions, l, save_path):
+    sns.set(rc={'figure.figsize': (10, 10)}, font_scale=3)
+    sns.set_style("whitegrid", {'axes.grid': False, 'legend.labelspacing': 1.2})
+    action_mapping = {0: "Down", 1: "Up", 2: "Left", 3: "Right"}
     df = pd.DataFrame(acts).add_prefix("Latent variable at index ")
     df["Action"] = actions
-    df["Action"] = df["Action"].replace({0: "Down", 1: "Up", 2: "Left", 3: "Right"})
+    df["Action"] = df["Action"].replace(action_mapping)
     df = drop_outliers(df)
     df.to_csv("{}_{}.tsv".format(save_path, l), sep="\t", index=False)
     for i in range(acts.shape[1]):
         plt.figure()
-        sns.histplot(data=df, x="Latent variable at index {}".format(i), hue="Action", multiple="stack")
+        sns.histplot(data=df, x="Latent variable at index {}".format(i), hue="Action", multiple="stack",
+                     hue_order=action_mapping.values())
         save_figure("{}_{}_latent_{}.pdf".format(save_path, l, i))
 
 
