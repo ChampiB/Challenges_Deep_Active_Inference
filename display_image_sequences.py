@@ -19,7 +19,7 @@ def display_images(config):
 
     # Create the environment and apply standard wrappers.
     Logger.get().info("Load the environment...\n")
-    initial_state = np.array([0, 2, 5, 15, 15, 5], dtype=np.float64)
+    initial_state = np.array([0, 2, 5, 15, 0, 31], dtype=np.float64)
     env = dSpritesEnv(config, initial_state)
     with open_dict(config):
         config.env.n_actions = env.action_space.n
@@ -27,7 +27,7 @@ def display_images(config):
 
     # Load the agent from the checkpoint.
     Logger.get().info("Load the agent...\n")
-    archive = Checkpoint(config, config["checkpoint"]["file"])
+    archive = Checkpoint(config["agent"]["tensorboard_dir"], config["checkpoint"]["file"])
     agent = archive.load_model() if archive.exists() else instantiate(config["agent"])
 
     # Collect the initial image from the environment and infer the associated state.
@@ -39,7 +39,7 @@ def display_images(config):
     # Collect images from the environment.
     Logger.get().info("Gather images from the environment...\n")
     images = []
-    actions = [torch.tensor([2])] * 10
+    actions = [torch.tensor([3])] * 10
     for action in actions:
 
         # Generate an images using the VAE.

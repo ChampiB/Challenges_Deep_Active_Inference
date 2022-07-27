@@ -88,13 +88,13 @@ def compute_info_gain(g_value, mean_hat, log_var_hat, mean, log_var, shift=-20):
     :return: the efe.
     """
     efe = torch.zeros([1]).to(Device.get())
-    if g_value[-5:] == "efe_0":
+    if g_value[-5:] == "efe_0":  # G^1
         efe = entropy_gaussian(log_var_hat) - entropy_gaussian(log_var)
-    elif g_value[-5:] == "efe_1":
+    elif g_value[-5:] == "efe_1":  # G^3
         efe = kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
-    elif g_value[-5:] == "efe_2":
+    elif g_value[-5:] == "efe_2":  # G^2
         efe = entropy_gaussian(log_var) - entropy_gaussian(log_var_hat)
-    elif g_value[-5:] == "efe_3":
+    elif g_value[-5:] == "efe_3":  # G
         efe = kl_div_gaussian(mean, log_var, mean_hat, log_var_hat)
     elif g_value[0:1] == "b":
         efe = torch.sigmoid(efe + shift)
