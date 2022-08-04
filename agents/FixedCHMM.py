@@ -5,7 +5,7 @@ import copy
 from datetime import datetime
 from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
-import agents.math_fc.functions as mathfc
+import agents.math_fc.functions as math_fc
 from singletons.Device import Device
 from torch import nn, unsqueeze
 from agents.learning import Optimizers
@@ -15,12 +15,12 @@ import torch
 #
 # Implement a Critical agent based on a fixed HMM.
 #
-class CriticFixedHMM:
+class FixedCHMM:
 
     def __init__(
             self, encoder, decoder, transition, critic, discount_factor, action_selection,
             n_steps_beta_reset, beta, efe_lr, vfe_lr, beta_starting_step, beta_rate, n_actions,
-            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value, steps_done=0, **_
+            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value, **_
     ):
         """
         Constructor
@@ -75,7 +75,7 @@ class CriticFixedHMM:
         self.n_steps_between_synchro = n_steps_between_synchro
         self.discount_factor = discount_factor
         self.buffer = ReplayBuffer(capacity=queue_capacity)
-        self.steps_done = steps_done
+        self.steps_done = 0
         self.g_value = g_value
         self.action_selection = action_selection
         self.vfe_lr = vfe_lr
@@ -89,7 +89,7 @@ class CriticFixedHMM:
 
     def step(self, obs, config):
         """
-        Select a random action based on the critic ouput
+        Select a random action based on the critic output
         :param obs: the input observation from which decision should be made
         :param config: the hydra configuration
         :return: the random action
@@ -198,33 +198,34 @@ class CriticFixedHMM:
 
         # Compute required vectors.
         mean_hat_t, log_var_hat_t = self.encoder(obs)
-        _, log_var = self.transition(mean_hat_t, actions)
+        mean, log_var = self.transition(mean_hat_t, actions)
         mean_hat, log_var_hat = self.encoder(next_obs)
 
         # Compute the G-values of each action in the current state.
-        critic_pred = self.critic(mean_hat_t)
-        critic_pred = critic_pred.gather(dim=1, index=unsqueeze(actions.to(torch.int64), dim=1))
+        critic_predict = self.critic(mean_hat_t)
+        critic_predict = critic_predict.gather(dim=1, index=unsqueeze(actions.to(torch.int64), dim=1))
 
         # For each batch entry where the simulation did not stop,
         # compute the value of the next states.
-        future_gval = torch.zeros(config["batch_size"], device=Device.get())
-        future_gval[torch.logical_not(done)] = self.target(mean_hat[torch.logical_not(done)]).max(1)[0]
-        future_gval = future_gval.detach()
+        future_g_val = torch.zeros(config["batch_size"], device=Device.get())
+        future_g_val[torch.logical_not(done)] = self.target(mean_hat[torch.logical_not(done)]).max(1)[0]
+        future_g_val = future_g_val.detach()
 
         # Compute the immediate G-value.
-        immediate_gval = rewards
+
+        # Compute the immediate G-value.
+        immediate_g_val = rewards
 
         # Add information gain to the immediate g-value (if needed).
-        if self.g_value == "efe":
-            immediate_gval += mathfc.entropy_gaussian(log_var_hat) - mathfc.entropy_gaussian(log_var)
-            immediate_gval = immediate_gval.to(torch.float32)
+        immediate_g_val -= math_fc.compute_info_gain(self.g_value, mean_hat, log_var_hat, mean, log_var)
+        immediate_g_val = immediate_g_val.to(torch.float32)
 
         # Compute the discounted G values.
-        gval = immediate_gval + self.discount_factor * future_gval
+        g_val = immediate_g_val + self.discount_factor * future_g_val
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
-        return loss(critic_pred, gval.unsqueeze(1))
+        return loss(critic_predict, g_val.unsqueeze(1))
 
     def compute_vfe(self, config, obs, actions, next_obs):
         """
@@ -239,15 +240,15 @@ class CriticFixedHMM:
         # Compute required vectors.
         # TODO optimize the computation of those vector across efe and vfe computation
         mean_hat, log_var_hat = self.encoder(obs)
-        states = mathfc.reparameterize(mean_hat, log_var_hat)
+        states = math_fc.reparameterize(mean_hat, log_var_hat)
         mean_hat, log_var_hat = self.encoder(next_obs)
-        next_state = mathfc.reparameterize(mean_hat, log_var_hat)
+        next_state = math_fc.reparameterize(mean_hat, log_var_hat)
         mean, log_var = self.transition(states, actions)
         alpha = self.decoder(next_state)
 
         # Compute the variational free energy.
-        kl_div_hs = mathfc.kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
-        log_likelihood = mathfc.log_bernoulli_with_logits(next_obs, alpha)
+        kl_div_hs = math_fc.kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
+        log_likelihood = math_fc.log_bernoulli_with_logits(next_obs, alpha)
         vfe_loss = self.beta * kl_div_hs - log_likelihood
 
         # Display debug information, if needed.
@@ -315,20 +316,26 @@ class CriticFixedHMM:
     @staticmethod
     def load_constructor_parameters(tb_dir, checkpoint, training_mode=True):
         """
-        Load the constructor parameters from a checkpoint.
-        :param tb_dir: the path of tensorboard directory.
-        :param checkpoint: the checkpoint from which to load the parameters.
-        :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: a dictionary containing the constructor's parameters.
+        Load the constructor parameters from a checkpoint
+        :param tb_dir: the path of tensorboard directory
+        :param checkpoint: the checkpoint from which to load the parameters
+        :param training_mode: True if the agent is being loaded for training, False otherwise
+        :return: a dictionary containing the constructor's parameters
         """
+        # Load the critic
+        critic = Checkpoint.load_critic(checkpoint, training_mode)
+        if critic is None:
+            critic = checkpoint["critic"]
+
+        # Return the constructor's parameters
         return {
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
             "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
             "transition": Checkpoint.load_transition(checkpoint, training_mode),
-            "critic": Checkpoint.load_critic(checkpoint, training_mode),
-            "vfe_lr": checkpoint["vfe_lr"],
+            "critic": critic,
+            "vfe_lr": checkpoint["lr"],
             "efe_lr": checkpoint["efe_lr"],
-            "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
+            "action_selection": checkpoint["action_selection"],
             "beta": checkpoint["beta"],
             "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
             "beta_starting_step": checkpoint["beta_starting_step"],
@@ -341,4 +348,3 @@ class CriticFixedHMM:
             "steps_done": checkpoint["steps_done"],
             "n_actions": checkpoint["n_actions"]
         }
-

@@ -111,7 +111,7 @@ class LoadFrame(tk.Frame):
             return
 
         # Load the model and store it in the GUI
-        archive = Checkpoint(self.gui.config, self.model_file.name)
+        archive = Checkpoint(self.gui.config["agent"]["tensorboard_dir"], self.model_file.name)
         if not archive.exists():
             return
         self.gui.model = archive.load_model()

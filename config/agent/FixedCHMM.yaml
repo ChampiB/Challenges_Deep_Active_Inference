@@ -1,0 +1,34 @@
+name: fixed_chmm
+
+defaults:
+  - encoder: convolutional64
+  - decoder: convolutional64
+  - transition: linearRelu3x100
+  - critic: linearRelu4x100
+  - action_selection: epsilonGreedy
+
+_target_: agents.FixedCHMM.FixedCHMM
+
+# Miscellaneous
+n_states: 10
+vfe_lr: 0.0001
+efe_lr: 0.001
+discount_factor: 0.95
+n_steps_between_synchro: 10
+queue_capacity: 50000
+g_value: "reward"  # values: 'efe' or 'reward'
+n_actions: ${env.n_actions}
+
+# Class and module
+module: "agents.FixedCHMM"
+class: "FixedCHMM"
+
+# File and directory
+loading_checkpoint_file: "${oc.env:DATA_DIRECTORY}/${env.name}/hmm/${seed}/model.pt"
+tensorboard_dir: "${oc.env:DATA_DIRECTORY}/runs/${agent.name}_${env.name}_${seed}"
+
+# Beta scheduling
+beta: 1.0
+beta_starting_step: 0
+beta_rate: 0.0000
+n_steps_beta_reset: 10000000000

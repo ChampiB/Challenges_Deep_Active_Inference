@@ -13,9 +13,9 @@ class Checkpoint:
 
     def __init__(self, tb_dir, file):
         """
-        Construct the checkpoint from the checkpoint file.
-        :param tb_dir: the path of tensorboard directory.
-        :param file: the checkpoint file.
+        Construct the checkpoint from the checkpoint file
+        :param tb_dir: the path of tensorboard directory
+        :param file: the checkpoint file
         """
 
         # If the path is not a file, return without trying to load the checkpoint.
@@ -27,7 +27,7 @@ class Checkpoint:
         # Load checkpoint from path.
         self.checkpoint = torch.load(file, map_location=Device.get())
 
-        # Store the path of the tensoboard directory
+        # Store the path of the tensorboard directory and the model name
         self.tb_dir = tb_dir
 
     def exists(self):
@@ -37,16 +37,22 @@ class Checkpoint:
         """
         return self.checkpoint is not None
 
-    def load_model(self, training_mode=True):
+    def load_model(self, training_mode=True, override=None):
         """
-        Load the model from the checkpoint.
+        Load the model from the checkpoint
         :param training_mode: True if the agent is being loaded for training, False otherwise.
+        :param override: the key-value pari that needs to be overridden in the checkpoint
         :return: the loaded model or None if an error occurred.
         """
 
         # Check if the checkpoint is loadable.
         if not self.exists():
             return None
+
+        # Override agent module and class if needed.
+        if override is not None:
+            for key, value in override.items():
+                self.checkpoint[key] = value
 
         # Load the agent class and module.
         agent_module = importlib.import_module(self.checkpoint["agent_module"])
@@ -61,9 +67,9 @@ class Checkpoint:
     @staticmethod
     def create_dir_and_file(checkpoint_file):
         """
-        Create the directory and file of the checkpoint if they do not already exist.
-        :param checkpoint_file: the checkpoint file.
-        :return: nothing.
+        Create the directory and file of the checkpoint if they do not already exist
+        :param checkpoint_file: the checkpoint file
+        :return: nothing
         """
         checkpoint_dir = os.path.dirname(checkpoint_file)
         if not os.path.exists(checkpoint_dir):
@@ -74,10 +80,10 @@ class Checkpoint:
     @staticmethod
     def set_training_mode(neural_net, training_mode):
         """
-        Set the training mode of the neural network sent as parameters.
-        :param neural_net: the neural network whose training mode needs to be set.
-        :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: nothing.
+        Set the training mode of the neural network sent as parameters
+        :param neural_net: the neural network whose training mode needs to be set
+        :param training_mode: True if the agent is being loaded for training, False otherwise
+        :return: nothing
         """
         if training_mode:
             neural_net.train()
@@ -87,10 +93,10 @@ class Checkpoint:
     @staticmethod
     def load_decoder(checkpoint, training_mode=True):
         """
-        Load the decoder from the checkpoint.
-        :param checkpoint: the checkpoint.
-        :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: the decoder.
+        Load the decoder from the checkpoint
+        :param checkpoint: the checkpoint
+        :param training_mode: True if the agent is being loaded for training, False otherwise
+        :return: the decoder
         """
 
         # Load number of states and the image shape.
@@ -110,10 +116,10 @@ class Checkpoint:
     @staticmethod
     def load_encoder(checkpoint, training_mode=True):
         """
-        Load the encoder from the checkpoint.
-        :param checkpoint: the checkpoint.
-        :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: the encoder.
+        Load the encoder from the checkpoint
+        :param checkpoint: the checkpoint
+        :param training_mode: True if the agent is being loaded for training, False otherwise
+        :return: the encoder
         """
 
         # Load number of states and the image shape.
@@ -133,7 +139,7 @@ class Checkpoint:
     @staticmethod
     def load_encoder_2ls(checkpoint, training_mode=True):
         """
-        Load the encoder from the checkpoint.
+        Load the encoder from the checkpoint
         :param checkpoint: the checkpoint.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
         :return: the encoder.
@@ -156,10 +162,10 @@ class Checkpoint:
     @staticmethod
     def load_transition(checkpoint, training_mode=True):
         """
-        Load the transition from the checkpoint.
-        :param checkpoint: the checkpoint.
-        :param training_mode: True if the agent is being loaded for training, False otherwise.
-        :return: the transition.
+        Load the transition from the checkpoint
+        :param checkpoint: the checkpoint
+        :param training_mode: True if the agent is being loaded for training, False otherwise
+        :return: the transition
         """
 
         # Load transition network.
@@ -177,12 +183,16 @@ class Checkpoint:
     @staticmethod
     def load_critic(checkpoint, training_mode=True, n_states_key="n_states", network_key="critic_net"):
         """
-        Load the critic from the checkpoint.
-        :param checkpoint: the checkpoint.
-        :param n_states_key: the key of the dictionnary containing the number of states.
-        :param training_mode: True if the agent is being loaded for training, False otherwise.
+        Load the critic from the checkpoint
+        :param checkpoint: the checkpoint
+        :param n_states_key: the key of the dictionary containing the number of states
+        :param training_mode: True if the agent is being loaded for training, False otherwise
+        :param network_key: the prefix of the keys containing the critic's module and class
         :return: the critic.
         """
+        # Check validity of inputs
+        if network_key + '_module' not in checkpoint.keys() or network_key + '_class' not in checkpoint.keys():
+            return None
 
         # Load critic network.
         critic_module = importlib.import_module(checkpoint[network_key + "_module"])
@@ -199,7 +209,7 @@ class Checkpoint:
     @staticmethod
     def load_policy(checkpoint, training_mode):
         """
-        Load the policy from the checkpoint.
+        Load the policy from the checkpoint
         :param checkpoint: the checkpoint.
         :param training_mode: True if the agent is being loaded for training, False otherwise.
         :return: the policy.
@@ -219,10 +229,10 @@ class Checkpoint:
     @staticmethod
     def load_object_from_dictionary(checkpoint, key):
         """
-        Load the action selection strategy from the checkpoint.
-        :param checkpoint: the checkpoint.
-        :param key: the key in the dictionary where the object has been serialized.
-        :return: the action selection strategy.
+        Load the action selection strategy from the checkpoint
+        :param checkpoint: the checkpoint
+        :param key: the key in the dictionary where the object has been serialized
+        :return: the action selection strategy
         """
 
         # Load the action selection strategy from the checkpoint.
