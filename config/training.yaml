@@ -1,6 +1,6 @@
 defaults:
   - env: dSprites
-  - agent: FixedCHMM
+  - agent: AnalysisCHMM
   - _self_
 
 checkpoint:
@@ -10,7 +10,7 @@ checkpoint:
 images:
   shape: ${tuple:1,64,64}
 
-display_gui: true
+display_gui: false
 enable_tensorboard: true
 n_training_steps: 500000
 buffer_start_size: 50

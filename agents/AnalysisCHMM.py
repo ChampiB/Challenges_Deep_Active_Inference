@@ -1,3 +1,5 @@
+import os
+from agents.learning import Optimizers
 from agents.save.Checkpoint import Checkpoint
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
@@ -7,20 +9,24 @@ from singletons.Logger import Logger
 from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 import agents.math_fc.functions as math_fc
 from singletons.Device import Device
+import pandas as pd
+import matplotlib.pyplot as plt
 from torch import nn, unsqueeze
-from agents.learning import Optimizers
+import seaborn as sns
 import torch
+from scipy.stats import entropy
 
 
 #
-# Implement a Critical agent based on a fixed HMM.
+# Implement a Critical HMM able to evaluate the qualities of each action.
 #
-class FixedCHMM:
+class AnalysisCHMM:
 
     def __init__(
-            self, encoder, decoder, transition, critic, discount_factor, action_selection,
-            n_steps_beta_reset, beta, efe_lr, vfe_lr, beta_starting_step, beta_rate, n_actions,
-            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value, **_
+            self, encoder, decoder, transition, critic, discount_factor,
+            n_steps_beta_incr, beta, efe_lr, vfe_lr, beta_rate,
+            queue_capacity, n_steps_between_synchro, tensorboard_dir, g_value,
+            action_selection, n_actions=4, steps_done=0, efe_loss_update_encoder=False, **_
     ):
         """
         Constructor
@@ -28,11 +34,10 @@ class FixedCHMM:
         :param decoder: the decoder network
         :param transition: the transition network
         :param critic: the critic network
-        :param discount_factor: the factor by which the future EFE is discounted
         :param action_selection: the action selection to be used
         :param n_actions: the number of actions
-        :param n_steps_beta_reset: the number of steps after with beta is reset
-        :param beta_starting_step: the number of steps after which beta start increasing
+        :param discount_factor: the factor by which the future EFE is discounted
+        :param n_steps_beta_incr: the number of steps after with beta is increased
         :param beta: the initial value for beta
         :param beta_rate: the rate at which the beta parameter is increased
         :param efe_lr: the learning rate of the critic network
@@ -42,13 +47,9 @@ class FixedCHMM:
             of the target and the critic
         :param tensorboard_dir: the directory in which tensorboard's files will be written
         :param g_value: the type of value to be used, i.e. "reward" or "efe"
-        :param steps_done: the number of training iterations performed to date.
+        :param steps_done: the number of training iterations performed to date
+        :param efe_loss_update_encoder: True if the efe loss must update the weights of the encoder
         """
-
-        # Epsilon scheduling.
-        self.epsilon_start = 0.9  # The initial value of epsilon (for epsilon-greedy).
-        self.epsilon_end = 0.05  # The final value of epsilon (for epsilon-greedy).
-        self.epsilon_decay = 1000  # How slowly should epsilon decay? The bigger, the slower.
 
         # Neural networks.
         self.encoder = encoder
@@ -62,11 +63,12 @@ class FixedCHMM:
         Device.send([self.encoder, self.decoder, self.transition, self.critic, self.target])
 
         # Optimizers.
-        self.efe_optimizer = Optimizers.get_adam([critic], efe_lr)
+        self.vfe_optimizer = Optimizers.get_adam([encoder, decoder, transition], vfe_lr)
+        self.efe_optimizer = Optimizers.get_adam([encoder, critic], efe_lr) \
+            if efe_loss_update_encoder else Optimizers.get_adam([critic], efe_lr)
 
         # Beta scheduling.
-        self.n_steps_beta_reset = n_steps_beta_reset
-        self.beta_starting_step = beta_starting_step
+        self.n_steps_beta_incr = n_steps_beta_incr
         self.beta = beta
         self.beta_rate = beta_rate
 
@@ -75,23 +77,25 @@ class FixedCHMM:
         self.n_steps_between_synchro = n_steps_between_synchro
         self.discount_factor = discount_factor
         self.buffer = ReplayBuffer(capacity=queue_capacity)
-        self.steps_done = 0
+        self.steps_done = steps_done
         self.g_value = g_value
-        self.action_selection = action_selection
         self.vfe_lr = vfe_lr
         self.efe_lr = efe_lr
         self.tensorboard_dir = tensorboard_dir
         self.queue_capacity = queue_capacity
+        self.action_selection = action_selection
         self.n_actions = n_actions
+        self.efe_loss_update_encoder = efe_loss_update_encoder
+        self.actions_picked = pd.DataFrame(columns=["Training iterations", "Actions"])
+        self.entropy = pd.DataFrame(columns=["Training iterations", "Entropy"])
 
         # Create summary writer for monitoring
         self.writer = SummaryWriter(tensorboard_dir)
 
-    def step(self, obs, config):
+    def step(self, obs):
         """
         Select a random action based on the critic output
         :param obs: the input observation from which decision should be made
-        :param config: the hydra configuration
         :return: the random action
         """
 
@@ -100,7 +104,20 @@ class FixedCHMM:
         state, _ = self.encoder(obs)
 
         # Select an action.
-        return self.action_selection.select(self.critic(state), self.steps_done)
+        action = self.action_selection.select(self.critic(state), self.steps_done)
+
+        # Save action taken.
+        action_name = ["Down", "Up", "Left", "Right"][action]
+        new_row = pd.DataFrame({"Training iterations": [self.steps_done], "Actions": [action_name]})
+        self.actions_picked = pd.concat([self.actions_picked, new_row], ignore_index=True, axis=0)
+
+        # Compute entropy of prior over actions.
+        sm = nn.Softmax(dim=1)(self.critic(state))
+        e = entropy(sm[0].detach())
+        new_row = pd.DataFrame({"Training iterations": [self.steps_done], "Entropy": [e]})
+        self.entropy = pd.concat([self.entropy, new_row], ignore_index=True, axis=0)
+
+        return action
 
     def train(self, env, config):
         """
@@ -122,7 +139,7 @@ class FixedCHMM:
         while self.steps_done < config["n_training_steps"]:
 
             # Select an action.
-            action = self.step(obs, config)
+            action = self.step(obs)
 
             # Execute the action in the environment.
             old_obs = obs
@@ -156,6 +173,36 @@ class FixedCHMM:
         # Close the environment.
         env.close()
 
+        # Display graph.
+        self.display_actions_picked()
+        self.display_actions_prior_entropy()
+
+    def display_actions_prior_entropy(self):
+        """
+        Display the entropy of the prior over actions during training
+        :return: nothing
+        """
+        # Draw a categorical scatter plot to show each observation
+        sns.set_theme(style="whitegrid", palette="muted")
+        ax = sns.lineplot(data=self.entropy, x="Training iterations", y="Entropy")
+        ax.set(ylabel="")
+        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        plt.savefig(os.environ["DATA_DIRECTORY"] + "/EntropyPriorActions.pdf")
+        plt.show()
+
+    def display_actions_picked(self):
+        """
+        Display the action picked by the agent during training
+        :return: nothing
+        """
+        # Draw a categorical scatter plot to show each observation
+        sns.set_theme(style="whitegrid", palette="muted")
+        ax = sns.swarmplot(data=self.actions_picked, x="Training iterations", y="Actions", hue="Actions")
+        ax.set(ylabel="")
+        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        plt.savefig(os.environ["DATA_DIRECTORY"] + "/ActionPicked.pdf")
+        plt.show()
+
     def learn(self, config):
         """
         Perform on step of gradient descent on the encoder and the decoder
@@ -178,11 +225,17 @@ class FixedCHMM:
         efe_loss.backward()
         self.efe_optimizer.step()
 
+        # Compute the variational free energy.
+        vfe_loss = self.compute_vfe(config, obs, actions, next_obs)
+
+        # Perform one step of gradient descent on the other networks.
+        self.vfe_optimizer.zero_grad()
+        vfe_loss.backward()
+        self.vfe_optimizer.step()
+
         # Implement the cyclical scheduling for beta.
-        if self.steps_done >= self.beta_starting_step:
+        if self.steps_done != 0 and self.steps_done % self.n_steps_beta_incr == 0:
             self.beta = np.clip(self.beta + self.beta_rate, 0, 1)
-        if self.steps_done % self.n_steps_beta_reset == 0:
-            self.beta = 0
 
     def compute_efe_loss(self, config, obs, actions, next_obs, done, rewards):
         """
@@ -202,30 +255,35 @@ class FixedCHMM:
         mean_hat, log_var_hat = self.encoder(next_obs)
 
         # Compute the G-values of each action in the current state.
-        critic_predict = self.critic(mean_hat_t)
-        critic_predict = critic_predict.gather(dim=1, index=unsqueeze(actions.to(torch.int64), dim=1))
+        critic_pred = self.critic(mean_hat_t)
+        critic_pred = critic_pred.gather(dim=1, index=unsqueeze(actions.to(torch.int64), dim=1))
 
         # For each batch entry where the simulation did not stop,
         # compute the value of the next states.
-        future_g_val = torch.zeros(config["batch_size"], device=Device.get())
-        future_g_val[torch.logical_not(done)] = self.target(mean_hat[torch.logical_not(done)]).max(1)[0]
-        future_g_val = future_g_val.detach()
+        future_gval = torch.zeros(config["batch_size"], device=Device.get())
+        future_gval[torch.logical_not(done)] = self.target(mean_hat[torch.logical_not(done)]).max(1)[0]
 
         # Compute the immediate G-value.
-
-        # Compute the immediate G-value.
-        immediate_g_val = rewards
+        immediate_gval = rewards
 
         # Add information gain to the immediate g-value (if needed).
-        immediate_g_val -= math_fc.compute_info_gain(self.g_value, mean_hat, log_var_hat, mean, log_var)
-        immediate_g_val = immediate_g_val.to(torch.float32)
+        immediate_gval -= self.beta * math_fc.compute_info_gain(self.g_value, mean_hat, log_var_hat, mean, log_var)
+        immediate_gval = immediate_gval.to(torch.float32)
 
         # Compute the discounted G values.
-        g_val = immediate_g_val + self.discount_factor * future_g_val
+        gval = immediate_gval + self.discount_factor * future_gval
+        gval = gval.detach()
 
         # Compute the loss function.
         loss = nn.SmoothL1Loss()
-        return loss(critic_predict, g_val.unsqueeze(1))
+        loss = loss(critic_pred, gval.unsqueeze(dim=1))
+
+        # Display debug information, if needed.
+        if config["enable_tensorboard"] and self.steps_done % 10 == 0:
+            self.writer.add_scalar("efe_loss", loss, self.steps_done)
+            self.writer.add_scalar("beta", self.beta, self.steps_done)
+
+        return loss
 
     def compute_vfe(self, config, obs, actions, next_obs):
         """
@@ -238,7 +296,6 @@ class FixedCHMM:
         """
 
         # Compute required vectors.
-        # TODO optimize the computation of those vector across efe and vfe computation
         mean_hat, log_var_hat = self.encoder(obs)
         states = math_fc.reparameterize(mean_hat, log_var_hat)
         mean_hat, log_var_hat = self.encoder(next_obs)
@@ -249,16 +306,24 @@ class FixedCHMM:
         # Compute the variational free energy.
         kl_div_hs = math_fc.kl_div_gaussian(mean_hat, log_var_hat, mean, log_var)
         log_likelihood = math_fc.log_bernoulli_with_logits(next_obs, alpha)
-        vfe_loss = self.beta * kl_div_hs - log_likelihood
+        vfe_loss = kl_div_hs - log_likelihood
 
         # Display debug information, if needed.
         if config["enable_tensorboard"] and self.steps_done % 10 == 0:
-            self.writer.add_scalar("KL_div_hs", kl_div_hs, self.steps_done)
+            self.writer.add_scalar("kl_div_hs", kl_div_hs, self.steps_done)
             self.writer.add_scalar("neg_log_likelihood", - log_likelihood, self.steps_done)
-            self.writer.add_scalar("Beta", self.beta, self.steps_done)
-            self.writer.add_scalar("VFE", vfe_loss, self.steps_done)
+            self.writer.add_scalar("vfe", vfe_loss, self.steps_done)
 
         return vfe_loss
+
+    def predict(self, obs):
+        """
+        Do one forward pass using given observation.
+        :return: the outputs of the encoder and critic model
+        """
+        mean_hat_t, log_var_hat_t = self.encoder(obs)
+        critic_pred = self.critic(mean_hat_t)
+        return mean_hat_t, log_var_hat_t, critic_pred
 
     def synchronize_target(self):
         """
@@ -298,8 +363,7 @@ class FixedCHMM:
             "critic_net_state_dict": self.critic.state_dict(),
             "critic_net_module": str(self.critic.__module__),
             "critic_net_class": str(self.critic.__class__.__name__),
-            "n_steps_beta_reset": self.n_steps_beta_reset,
-            "beta_starting_step": self.beta_starting_step,
+            "n_steps_beta_incr": self.n_steps_beta_incr,
             "beta": self.beta,
             "beta_rate": self.beta_rate,
             "steps_done": self.steps_done,
@@ -311,6 +375,7 @@ class FixedCHMM:
             "queue_capacity": self.queue_capacity,
             "n_steps_between_synchro": self.n_steps_between_synchro,
             "action_selection": dict(self.action_selection),
+            "efe_loss_update_encoder": self.efe_loss_update_encoder
         }, checkpoint_file)
 
     @staticmethod
@@ -322,23 +387,16 @@ class FixedCHMM:
         :param training_mode: True if the agent is being loaded for training, False otherwise
         :return: a dictionary containing the constructor's parameters
         """
-        # Load the critic
-        critic = Checkpoint.load_critic(checkpoint, training_mode)
-        if critic is None:
-            critic = checkpoint["critic"]
-
-        # Return the constructor's parameters
         return {
             "encoder": Checkpoint.load_encoder(checkpoint, training_mode),
             "decoder": Checkpoint.load_decoder(checkpoint, training_mode),
             "transition": Checkpoint.load_transition(checkpoint, training_mode),
-            "critic": critic,
-            "vfe_lr": checkpoint["lr"] if "lr" in checkpoint.keys() else checkpoint["vfe_lr"],
+            "critic": Checkpoint.load_critic(checkpoint, training_mode),
+            "vfe_lr": checkpoint["vfe_lr"],
             "efe_lr": checkpoint["efe_lr"],
-            "action_selection": checkpoint["action_selection"],
+            "action_selection": Checkpoint.load_object_from_dictionary(checkpoint, "action_selection"),
             "beta": checkpoint["beta"],
-            "n_steps_beta_reset": checkpoint["n_steps_beta_reset"],
-            "beta_starting_step": checkpoint["beta_starting_step"],
+            "n_steps_beta_incr": checkpoint["n_steps_beta_incr"],
             "beta_rate": checkpoint["beta_rate"],
             "discount_factor": checkpoint["discount_factor"],
             "tensorboard_dir": tb_dir,
@@ -346,5 +404,6 @@ class FixedCHMM:
             "queue_capacity": checkpoint["queue_capacity"],
             "n_steps_between_synchro": checkpoint["n_steps_between_synchro"],
             "steps_done": checkpoint["steps_done"],
-            "n_actions": checkpoint["n_actions"]
+            "n_actions": checkpoint["n_actions"],
+            "efe_loss_update_encoder": checkpoint["efe_loss_update_encoder"]
         }
