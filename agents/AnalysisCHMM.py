@@ -187,7 +187,7 @@ class AnalysisCHMM:
         ax = sns.lineplot(data=self.entropy, x="Training iterations", y="Entropy")
         ax.set(ylabel="")
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-        plt.savefig(os.environ["DATA_DIRECTORY"] + "/EntropyPriorActions.pdf")
+        plt.savefig(os.environ["DATA_DIRECTORY"] + f"/EntropyPriorActions_{self.g_value}.pdf")
         plt.show()
 
     def display_actions_picked(self):
@@ -200,7 +200,7 @@ class AnalysisCHMM:
         ax = sns.swarmplot(data=self.actions_picked, x="Training iterations", y="Actions", hue="Actions")
         ax.set(ylabel="")
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-        plt.savefig(os.environ["DATA_DIRECTORY"] + "/ActionPicked.pdf")
+        plt.savefig(os.environ["DATA_DIRECTORY"] + f"/ActionPicked_{self.g_value}.pdf")
         plt.show()
 
     def learn(self, config):

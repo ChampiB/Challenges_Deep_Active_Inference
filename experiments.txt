@@ -197,7 +197,7 @@ sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh 
 sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=DAI seed=164 env.difficulty="hard" agent.g_value="efe_3" agent.efe_loss_update_encoder=True agent.action_selection=bestAction
 
 #
-# Additional experiements
+# Additional experiments
 #
 
 sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu fixed_chmm_training.sh seed=165 env.difficulty="hard" agent.g_value="reward"
@@ -217,3 +217,7 @@ sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu fixed_chmm_train
 sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu fixed_chmm_training.sh seed=177 env.difficulty="hard" agent.g_value="efe_1" agent.action_selection=softmax
 sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu fixed_chmm_training.sh seed=178 env.difficulty="hard" agent.g_value="efe_2" agent.action_selection=softmax
 sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu fixed_chmm_training.sh seed=179 env.difficulty="hard" agent.g_value="efe_3" agent.action_selection=softmax
+
+
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=200 env.difficulty="hard" agent.g_value="reward"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=201 env.difficulty="hard" agent.g_value="efe_3"
