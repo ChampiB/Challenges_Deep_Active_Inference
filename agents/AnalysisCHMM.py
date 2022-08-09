@@ -113,7 +113,7 @@ class AnalysisCHMM:
 
         # Compute entropy of prior over actions.
         sm = nn.Softmax(dim=1)(self.critic(state))
-        e = entropy(sm[0].detach())
+        e = entropy(sm[0].detach().cpu())
         new_row = pd.DataFrame({"Training iterations": [self.steps_done], "Entropy": [e]})
         self.entropy = pd.concat([self.entropy, new_row], ignore_index=True, axis=0)
 

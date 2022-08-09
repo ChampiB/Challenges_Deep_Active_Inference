@@ -219,5 +219,6 @@ sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu fixed_chmm_train
 sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu fixed_chmm_training.sh seed=179 env.difficulty="hard" agent.g_value="efe_3" agent.action_selection=softmax
 
 
-sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=200 env.difficulty="hard" agent.g_value="reward"
-sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=CHMM seed=201 env.difficulty="hard" agent.g_value="efe_3"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=AnalysisCHMM seed=200 env.difficulty="hard" agent.g_value="reward"
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=AnalysisCHMM seed=201 env.difficulty="hard" agent.g_value="efe_3" agent.beta=1
+sbatch -p gpu --mem=10G --gres-flags=disable-binding --gres=gpu env_training.sh agent=AnalysisCHMM seed=202 env.difficulty="hard" agent.g_value="efe_3"
