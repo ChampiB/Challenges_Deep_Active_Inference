@@ -1,3 +1,4 @@
+from pathlib import Path
 import os
 from agents.learning import Optimizers
 from agents.save.Checkpoint import Checkpoint
@@ -174,34 +175,42 @@ class AnalysisCHMM:
         env.close()
 
         # Display graph.
-        self.display_actions_picked()
-        self.display_actions_prior_entropy()
+        self.save_actions_picked()
+        self.save_actions_prior_entropy()
 
-    def display_actions_prior_entropy(self):
+    def save_actions_prior_entropy(self):
         """
-        Display the entropy of the prior over actions during training
+        Save the entropy of the prior over actions during training
         :return: nothing
         """
-        # Draw a categorical scatter plot to show each observation
-        sns.set_theme(style="whitegrid", palette="muted")
-        ax = sns.lineplot(data=self.entropy, x="Training iterations", y="Entropy")
-        ax.set(ylabel="")
-        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-        plt.savefig(os.environ["DATA_DIRECTORY"] + f"/EntropyPriorActions_{self.g_value}.pdf")
-        plt.show()
+        # Save dataframe to CSV.
+        filepath = Path(os.environ["DATA_DIRECTORY"] + f"/EntropyPriorActions_{self.g_value}.csv")
+        self.entropy.to_csv(filepath)
 
-    def display_actions_picked(self):
+        # Draw a categorical scatter plot to show each observation
+        # TODO sns.set_theme(style="whitegrid", palette="muted")
+        # TODO ax = sns.lineplot(data=self.entropy, x="Training iterations", y="Entropy")
+        # TODO ax.set(ylabel="")
+        # TODO plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        # TODO plt.savefig(os.environ["DATA_DIRECTORY"] + f"/EntropyPriorActions_{self.g_value}.pdf")
+        # TODO plt.show()
+
+    def save_actions_picked(self):
         """
-        Display the action picked by the agent during training
+        Save the action picked by the agent during training
         :return: nothing
         """
-        # Draw a categorical scatter plot to show each observation
-        sns.set_theme(style="whitegrid", palette="muted")
-        ax = sns.swarmplot(data=self.actions_picked, x="Training iterations", y="Actions", hue="Actions")
-        ax.set(ylabel="")
-        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-        plt.savefig(os.environ["DATA_DIRECTORY"] + f"/ActionPicked_{self.g_value}.pdf")
-        plt.show()
+        # Save dataframe to CSV.
+        filepath = Path(os.environ["DATA_DIRECTORY"] + f"/ActionPicked_{self.g_value}.csv")
+        self.actions_picked.to_csv(filepath)
+
+        # Draw a categorical scatter plot to show each observation.
+        # TODO sns.set_theme(style="whitegrid", palette="muted")
+        # TODO ax = sns.swarmplot(data=self.actions_picked, x="Training iterations", y="Actions", hue="Actions")
+        # TODO ax.set(ylabel="")
+        # TODO plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        # TODO plt.savefig(os.environ["DATA_DIRECTORY"] + f"/ActionPicked_{self.g_value}.pdf")
+        # TODO plt.show()
 
     def learn(self, config):
         """
