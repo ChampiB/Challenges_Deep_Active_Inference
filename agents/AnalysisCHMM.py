@@ -11,9 +11,7 @@ from agents.memory.ReplayBuffer import ReplayBuffer, Experience
 import agents.math_fc.functions as math_fc
 from singletons.Device import Device
 import pandas as pd
-import matplotlib.pyplot as plt
 from torch import nn, unsqueeze
-import seaborn as sns
 import torch
 from scipy.stats import entropy
 
@@ -187,14 +185,6 @@ class AnalysisCHMM:
         filepath = Path(os.environ["DATA_DIRECTORY"] + f"/EntropyPriorActions_{self.g_value}.csv")
         self.entropy.to_csv(filepath)
 
-        # Draw a categorical scatter plot to show each observation
-        # TODO sns.set_theme(style="whitegrid", palette="muted")
-        # TODO ax = sns.lineplot(data=self.entropy, x="Training iterations", y="Entropy")
-        # TODO ax.set(ylabel="")
-        # TODO plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-        # TODO plt.savefig(os.environ["DATA_DIRECTORY"] + f"/EntropyPriorActions_{self.g_value}.pdf")
-        # TODO plt.show()
-
     def save_actions_picked(self):
         """
         Save the action picked by the agent during training
@@ -203,14 +193,6 @@ class AnalysisCHMM:
         # Save dataframe to CSV.
         filepath = Path(os.environ["DATA_DIRECTORY"] + f"/ActionPicked_{self.g_value}.csv")
         self.actions_picked.to_csv(filepath)
-
-        # Draw a categorical scatter plot to show each observation.
-        # TODO sns.set_theme(style="whitegrid", palette="muted")
-        # TODO ax = sns.swarmplot(data=self.actions_picked, x="Training iterations", y="Actions", hue="Actions")
-        # TODO ax.set(ylabel="")
-        # TODO plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-        # TODO plt.savefig(os.environ["DATA_DIRECTORY"] + f"/ActionPicked_{self.g_value}.pdf")
-        # TODO plt.show()
 
     def learn(self, config):
         """
