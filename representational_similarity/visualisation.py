@@ -6,7 +6,6 @@ from scipy import stats
 import pandas as pd
 
 
-
 def save_figure(out_fname, dpi=300, tight=True):
     """ Save a matplotlib figure in an `out_fname` file.
 
